@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { User, Clock, MapPin, Shield } from "lucide-react";
+import { User, Clock, MapPin, Shield, KeyRound } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const timezones = [
@@ -68,6 +68,45 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState<string | null>(null);
+  const [pwError, setPwError] = useState<string | null>(null);
+
+  const changePassword = async () => {
+    if (pwSaving) return;
+    setPwError(null);
+    setPwSuccess(null);
+    if (!pwForm.currentPassword || !pwForm.newPassword || !pwForm.confirmPassword) {
+      setPwError("All three password fields are required.");
+      return;
+    }
+    if (pwForm.newPassword.length < 8) {
+      setPwError("New password must be at least 8 characters.");
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError("New passwords do not match.");
+      return;
+    }
+    setPwSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pwForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not change password.");
+      setPwSuccess(data.message || "Password updated successfully.");
+      setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : "Could not change password.");
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -280,6 +319,57 @@ export default function SettingsPage() {
                 <span className="text-xs text-zinc-600">Changes apply to your account immediately after saving.</span>
               )}
             </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-zinc-500" />
+                  Security — Change Password
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 max-w-md">
+                {pwSuccess && (
+                  <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-300">
+                    {pwSuccess}
+                  </div>
+                )}
+                {pwError && (
+                  <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+                    {pwError}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Current Password</label>
+                  <Input
+                    type="password"
+                    autoComplete="current-password"
+                    value={pwForm.currentPassword}
+                    onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 uppercase tracking-wider">New Password (min 8 chars)</label>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={pwForm.newPassword}
+                    onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Confirm New Password</label>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={pwForm.confirmPassword}
+                    onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                  />
+                </div>
+                <Button onClick={changePassword} disabled={pwSaving}>
+                  {pwSaving ? "Updating…" : "Update Password"}
+                </Button>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

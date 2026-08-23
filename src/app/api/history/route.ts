@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDateRange } from "@/lib/utils";
+import { getUserDateContext, getDbDate, addDays } from "@/lib/user-date-context";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
 
     const userId = session.user.id;
     const days = Math.min(parseInt(request.nextUrl.searchParams.get("days") || "30", 10) || 30, 365);
-    const { start, end } = getDateRange(days);
+    const ctx = await getUserDateContext(userId);
+    const start = getDbDate(addDays(ctx.dateStr, -(days - 1)));
+    const end = ctx.date;
 
     const [scores, prayers, quran, darood, walking, exercise, learningSessions, reviews] = await Promise.all([
       db.disciplineScore.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: "desc" } }),

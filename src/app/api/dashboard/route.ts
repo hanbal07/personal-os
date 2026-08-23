@@ -1,32 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getPrayerTimesForDate, getNextPrayer, LocationConfig } from "@/lib/prayer-times";
-import { getTodayDate } from "@/lib/utils";
+import { getUserDateContext, getDbDate, getUserLocalHour } from "@/lib/user-date-context";
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
-  if (hour < 17) return "Good Afternoon";
-  return "Good Evening";
-}
-
-function calculateStreak(dates: Date[]): number {
+function calculateStreak(dates: Date[], todayStr: string): number {
   if (dates.length === 0) return 0;
-  const sorted = dates
-    .map((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime())
-    .sort((a, b) => b - a);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayTime = today.getTime();
+  const dayNumber = (d: Date) => Math.floor(d.getTime() / 86400000);
+  const sorted = dates.map(dayNumber).sort((a, b) => b - a);
+  const todayNum = dayNumber(getDbDate(todayStr));
 
-  if (sorted[0] !== todayTime) return 0;
+  if (sorted[0] !== todayNum) return 0;
 
   let streak = 1;
   for (let i = 1; i < sorted.length; i++) {
-    const diff = (sorted[i - 1] - sorted[i]) / (1000 * 60 * 60 * 24);
-    if (diff === 1) streak++;
+    if (sorted[i - 1] - sorted[i] === 1) streak++;
     else break;
   }
   return streak;
@@ -40,12 +29,21 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const today = getTodayDate();
-    const todayStr = today.toISOString().split("T")[0];
 
-    const settings = await db.userSettings.findUnique({
-      where: { userId },
-    });
+    // User-timezone-aware "today" (also loads settings in one query).
+    const settings = await db.userSettings.findUnique({ where: { userId } });
+    const requestedDate = request.nextUrl.searchParams.get("date");
+    let todayStr: string;
+    let today: Date;
+    let timezone: string;
+    try {
+      const ctx = await getUserDateContext(userId, requestedDate);
+      todayStr = ctx.dateStr;
+      today = ctx.date;
+      timezone = ctx.timezone;
+    } catch {
+      return NextResponse.json({ error: "date must be a valid YYYY-MM-DD string" }, { status: 400 });
+    }
 
     const locationConfig: LocationConfig = {
       latitude: settings?.latitude ?? 31.5204,
@@ -54,6 +52,7 @@ export async function GET(request: NextRequest) {
       madhab: settings?.juristicMethod ?? "Hanafi",
     };
 
+    // Single parallel batch â€” every record needed below is fetched exactly once.
     const [
       routine,
       prayers,
@@ -62,12 +61,14 @@ export async function GET(request: NextRequest) {
       meals,
       exercise,
       walking,
-      sleep,
+      sleepRecord,
       learningSessions,
       projects,
       habits,
       disciplineScore,
       waterRecord,
+      habitCompletions,
+      pastScores,
     ] = await Promise.all([
       db.dailyRoutine.findUnique({ where: { userId_date: { userId, date: today } } }),
       db.prayerRecord.findMany({ where: { userId, date: today } }),
@@ -82,58 +83,52 @@ export async function GET(request: NextRequest) {
       db.habit.findMany({ where: { userId, active: true } }),
       db.disciplineScore.findUnique({ where: { userId_date: { userId, date: today } } }),
       db.waterRecord.findUnique({ where: { userId_date: { userId, date: today } } }),
+      db.habitCompletion.findMany({ where: { habit: { userId }, date: today }, select: { status: true } }),
+      db.disciplineScore.findMany({
+        where: { userId },
+        orderBy: { date: "desc" },
+        take: 30,
+        select: { date: true },
+      }),
     ]);
 
-    const prayerTimes = getPrayerTimesForDate(new Date(), locationConfig).filter((p) => p.name !== "Sunrise");
+    const now = new Date();
+    const hour = getUserLocalHour(timezone, now);
+    const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+
+    const prayerTimes = getPrayerTimesForDate(now, locationConfig).filter((p) => p.name !== "Sunrise");
     const nextPrayer = getNextPrayer(locationConfig);
 
     const prayerCompleted = prayers.filter((p) => p.status === "COMPLETED").length;
-    const quranCompleted = quran?.status === "COMPLETED";
-    const daroodCount = darood?.count ?? 0;
-    const daroodTarget = 33;
-
-    const mealsCount = meals.length;
-    const walkingCompleted = walking?.completed ?? false;
-    const exerciseCompleted = exercise.filter((e) => e.completed).length;
-    const exerciseTotal = exercise.length;
-
-    const learningHours = learningSessions.reduce((sum: number, s: { durationMins: number }) => sum + s.durationMins, 0) / 60;
-    const activeProjects = projects.length;
-
-    const habitCompletions = await db.habitCompletion.findMany({
-      where: { habit: { userId }, date: new Date(today) },
-    });
     const habitsCompleted = habitCompletions.filter((h) => h.status === "COMPLETED").length;
-    const habitsTotal = habits.length;
-
-    const currentDisciplineScore = disciplineScore?.score ?? 0;
-
-    const pastScores = await db.disciplineScore.findMany({
-      where: { userId },
-      orderBy: { date: "desc" },
-      take: 30,
-    });
-    const streak = calculateStreak(pastScores.map((s) => s.date));
+    const learningHours =
+      Math.round(
+        (learningSessions.reduce((sum: number, s: { durationMins: number }) => sum + s.durationMins, 0) / 60) * 10
+      ) / 10;
+    const streak = calculateStreak(pastScores.map((s) => s.date), todayStr);
 
     return NextResponse.json({
-      date: today.toISOString().split("T")[0],
-      greeting: getGreeting(),
+      date: todayStr,
+      greeting,
+      isNewUser:
+        prayers.length === 0 &&
+        !quran &&
+        meals.length === 0 &&
+        learningSessions.length === 0 &&
+        !walking &&
+        !sleepRecord &&
+        habitsCompleted === 0 &&
+        !disciplineScore,
       summary: {
-        tasksCompleted: habitCompletions.filter((h) => h.status === "COMPLETED").length,
+        tasksCompleted: habitsCompleted,
         tasksTotal: habits.length,
         disciplineScore: disciplineScore?.score ?? 0,
-        streak: calculateStreak(
-          (await db.disciplineScore.findMany({
-            where: { userId },
-            orderBy: { date: "desc" },
-            take: 30,
-          })).map((s) => s.date)
-        ),
+        streak,
       },
       prayers: {
-        times: getPrayerTimesForDate(new Date(), locationConfig).filter((p) => p.name !== "Sunrise"),
-        nextPrayer: getNextPrayer(locationConfig),
-        completed: prayers.filter((p) => p.status === "COMPLETED").length,
+        times: prayerTimes,
+        nextPrayer,
+        completed: prayerCompleted,
         total: 5,
       },
       quran: {
@@ -156,7 +151,7 @@ export async function GET(request: NextRequest) {
         waterTarget: waterRecord?.target ?? 8,
       },
       learning: {
-        hours: Math.round(learningSessions.reduce((sum: number, s: { durationMins: number }) => sum + s.durationMins, 0) / 60 * 10) / 10,
+        hours: learningHours,
         targetHours: settings?.dailyLearningHours ?? 8,
         sessions: learningSessions.length,
       },
@@ -165,16 +160,14 @@ export async function GET(request: NextRequest) {
         records: projects,
       },
       habits: {
-        completed: (await db.habitCompletion.findMany({
-          where: { habit: { userId }, date: new Date() },
-        })).filter((h) => h.status === "COMPLETED").length,
+        completed: habitsCompleted,
         total: habits.length,
       },
       sleep: {
-        hours: (await db.sleepRecord.findUnique({ where: { userId_date: { userId, date: new Date() } } }))?.hours ?? 0,
+        hours: sleepRecord?.hours ?? 0,
         target: 8,
-        bedTime: (await db.sleepRecord.findUnique({ where: { userId_date: { userId, date: new Date() } } }))?.bedTime,
-        wakeTime: (await db.sleepRecord.findUnique({ where: { userId_date: { userId, date: new Date() } } }))?.wakeTime,
+        bedTime: sleepRecord?.bedTime,
+        wakeTime: sleepRecord?.wakeTime,
       },
     });
   } catch (error) {

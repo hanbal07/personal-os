@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getTodayDate } from "@/lib/utils";
+import { getUserDateContext } from "@/lib/user-date-context";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +12,13 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const searchParams = request.nextUrl.searchParams;
-    const dateStr = searchParams.get("date");
-    const date = dateStr ? new Date(dateStr) : getTodayDate();
+    const dateStr = request.nextUrl.searchParams.get("date");
+    let date: Date;
+    try {
+      ({ date } = await getUserDateContext(userId, dateStr));
+    } catch {
+      return NextResponse.json({ error: "date must be a valid YYYY-MM-DD string" }, { status: 400 });
+    }
 
     const prayers = await db.prayerRecord.findMany({
       where: { userId, date },

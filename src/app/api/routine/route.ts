@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getTodayDate } from "@/lib/utils";
+import { getUserDateContext } from "@/lib/user-date-context";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const today = getTodayDate();
+    const { date: today } = await getUserDateContext(userId);
 
     const routine = await db.dailyRoutine.findUnique({
       where: { userId_date: { userId, date: today } },
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const today = getTodayDate();
+    const { date: today } = await getUserDateContext(userId);
     const body = await request.json();
     const { tasks, wakeTime, notes } = body;
 

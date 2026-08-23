@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 const VALID_STATUSES = ["COMPLETED", "PARTIAL", "MISSED"];
+
+import { getUserDateContext } from "@/lib/user-date-context";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,10 +15,8 @@ export async function GET(request: NextRequest) {
     }
 
     const dateStr = request.nextUrl.searchParams.get("date");
-    const parsedDate = dateStr ? new Date(`${dateStr}T12:00:00`) : null;
-    const date = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
-    const today = new Date(date);
-    today.setHours(0, 0, 0, 0);
+    const ctx = await getUserDateContext(session.user.id, dateStr);
+    const today = ctx.date;
 
     const record = await db.quranRecord.findUnique({
       where: { userId_date: { userId: session.user.id, date: today } },
@@ -43,8 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const { date: today } = await getUserDateContext(session.user.id);
 
     const data: Record<string, unknown> = {};
 

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getDateRange, getTodayDate, calculatePercentage } from "@/lib/utils";
+import { getUserDateContext, getDbDate, addDays } from "@/lib/user-date-context";
+import { calculatePercentage } from "@/lib/utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +21,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
     const days = period === "week" ? 7 : period === "month" ? 30 : 7;
-    const { start } = getDateRange(days);
-    const today = getTodayDate();
+    const ctx = await getUserDateContext(userId);
+    const start = getDbDate(addDays(ctx.dateStr, -(days - 1)));
+    const today = ctx.date;
 
     const disciplineScores = await db.disciplineScore.findMany({
       where: { userId, date: { gte: start } },

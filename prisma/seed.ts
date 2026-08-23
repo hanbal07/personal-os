@@ -4,6 +4,15 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  // ─── DEV-ONLY INITIAL CREDENTIAL (§9 policy) ──────────────────────────
+  // The seed account starts with email "user@personalos.dev" and password
+  // from SEED_PASSWORD env, falling back to "password" for local dev only.
+  // This is an INITIAL bootstrap credential, not the auth model:
+  //   - never hard-code it in frontend code or display it in the UI
+  //   - change it immediately via Settings → Security → Change Password
+  //   - production deployments should set SEED_PASSWORD to a strong value
+  // Only the bcrypt hash is stored; plaintext is never logged.
+  // ─────────────────────────────────────────────────────────────────────
   console.log("Seeding database...");
 
   const existing = await prisma.user.findUnique({
