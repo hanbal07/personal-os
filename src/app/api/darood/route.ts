@@ -12,8 +12,12 @@ export async function GET(request: NextRequest) {
     }
 
     const dateStr = request.nextUrl.searchParams.get("date");
-    const ctx = await getUserDateContext(session.user.id, dateStr);
-    const today = ctx.date;
+    let today: Date;
+    try {
+      today = (await getUserDateContext(session.user.id, dateStr)).date;
+    } catch {
+      return NextResponse.json({ error: "date must be a valid YYYY-MM-DD string" }, { status: 400 });
+    }
 
     const record = await db.daroodRecord.findUnique({
       where: { userId_date: { userId: session.user.id, date: today } },
