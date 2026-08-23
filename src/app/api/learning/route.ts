@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getTodayDate } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,22 +12,18 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id;
+    const searchParams = request.nextUrl.searchParams;
+    const dateStr = searchParams.get("date");
+    const date = dateStr ? new Date(dateStr) : getTodayDate();
 
-    const projects = await db.project.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      include: { tasks: { orderBy: { order: "asc" } } },
+    const sessions = await db.learningSession.findMany({
+      where: { userId, date },
+      include: { skill: true },
     });
 
-    const projectsWithStats = projects.map((p) => ({
-      ...p,
-      tasksTotal: p.tasks.length,
-      tasksCompleted: p.tasks.filter((t: { completed: boolean }) => t.completed).length,
-    }));
-
-    return NextResponse.json({ projects: projectsWithStats });
+    return NextResponse.json({ sessions });
   } catch (error) {
-    console.error("Projects GET error:", error);
+    console.error("Learning sessions GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -40,23 +37,32 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const body = await request.json();
-    const { title, description, skills, technologies, startDate, targetDate } = body;
+    const { skillId, date, sessionType, topic, durationMins, notes } = body;
 
-    const project = await db.project.create({
+    const learningSession = await db.learningSession.create({
       data: {
         userId,
-        title,
-        description,
-        skills,
-        technologies,
-        startDate: startDate ? new Date(startDate) : null,
-        targetDate: targetDate ? new Date(targetDate) : null,
+        skillId,
+        date: new Date(date),
+        sessionType,
+        topic,
+        durationMins,
+        notes,
+      },
+      include: { skill: true },
+    });
+
+    await db.skill.update({
+      where: { id: skillId },
+      data: {
+        practiceHours: { increment: durationMins / 60 },
+        updatedAt: new Date(),
       },
     });
 
-    return NextResponse.json({ project });
+    return NextResponse.json({ session: learningSession });
   } catch (error) {
-    console.error("Projects POST error:", error);
+    console.error("Learning session POST error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

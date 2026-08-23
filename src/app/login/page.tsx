@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,15 +17,35 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
-    if (email === "user@personalos.dev" && password === "password") {
-      router.push("/dashboard");
-    } else {
-      setError("Invalid credentials. Try user@personalos.dev / password");
+    if (!email || !password) {
+      setError("Please enter both email and password.");
+      return;
     }
-    setLoading(false);
+
+    setLoading(true);
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Invalid email or password.");
+      } else if (result?.ok) {
+        router.push("/dashboard");
+        router.refresh();
+      } else {
+        setError("Sign-in failed. Please try again.");
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,36 +65,39 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-xs text-zinc-500 uppercase tracking-wider">
+              <label htmlFor="email" className="text-xs text-zinc-500 uppercase tracking-wider">
                 Email
               </label>
               <Input
+                id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@personalos.dev"
+                placeholder="you@example.com"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-zinc-500 uppercase tracking-wider">
+              <label htmlFor="password" className="text-xs text-zinc-500 uppercase tracking-wider">
                 Password
               </label>
               <Input
+                id="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="password"
+                placeholder="••••••••"
               />
             </div>
             {error && (
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-red-400" role="alert">
+                {error}
+              </p>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>
-            <p className="text-xs text-zinc-600 text-center">
-              Demo: user@personalos.dev / password
-            </p>
           </form>
         </CardContent>
       </Card>

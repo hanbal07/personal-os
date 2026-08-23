@@ -30,6 +30,7 @@ model User {
   exerciseRecords ExerciseRecord[]
   walkingRecords  WalkingRecord[]
   sleepRecords    SleepRecord[]
+  waterRecords    WaterRecord[]
   learningSessions LearningSession[]
   skills          Skill[]
   projects        Project[]
@@ -131,6 +132,7 @@ model PrayerRecord {
   time      String?
   notes     String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -253,6 +255,21 @@ model SleepRecord {
   hours        Float?
   quality      Int?
   notes        String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Water ───────────────────────────────────────────────────────
+
+model WaterRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  glasses      Int      @default(0)
+  target       Int      @default(8)
   createdAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -433,6 +450,7 @@ model DailyReview {
   tomorrowPlan   String?
   dayScore       Int?
   createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -1,12 +1,11 @@
-import NextAuth from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { db } from "@/lib/db";
+import { compare } from "bcryptjs";
 
-export const {
-  handlers,
-  signIn,
-  signOut,
-  auth,
-} = NextAuth({
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(db),
   providers: [
     Credentials({
       name: "credentials",
@@ -19,18 +18,25 @@ export const {
           return null;
         }
 
-        if (
-          credentials.email === "user@personalos.dev" &&
-          credentials.password === "password"
-        ) {
-          return {
-            id: "1",
-            email: "user@personalos.dev",
-            name: "User",
-          };
+        const user = await db.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (!user || !user.password) {
+          return null;
         }
 
-        return null;
+        const isValid = await compare(credentials.password, user.password);
+
+        if (!isValid) {
+          return null;
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        };
       },
     }),
   ],
@@ -54,4 +60,8 @@ export const {
       return session;
     },
   },
-});
+};
+
+import NextAuth from "next-auth";
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);
