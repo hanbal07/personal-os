@@ -36,18 +36,43 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const body = await request.json();
+    let body: { skillId?: unknown; date?: unknown; sessionType?: unknown; topic?: unknown; durationMins?: unknown; notes?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const { skillId, date, sessionType, topic, durationMins, notes } = body;
+
+    const VALID_SESSION_TYPES = ["LEARNING", "PRACTICE", "BUILDING", "REVIEW", "DOCUMENTATION"];
+    if (typeof skillId !== "string" || !skillId) {
+      return NextResponse.json({ error: "skillId is required" }, { status: 400 });
+    }
+    if (typeof date !== "string" || isNaN(new Date(`${date}T12:00:00`).getTime())) {
+      return NextResponse.json({ error: "date must be a valid YYYY-MM-DD string" }, { status: 400 });
+    }
+    if (sessionType !== undefined && !VALID_SESSION_TYPES.includes(sessionType as string)) {
+      return NextResponse.json({ error: `sessionType must be one of: ${VALID_SESSION_TYPES.join(", ")}` }, { status: 400 });
+    }
+    const mins = Number(durationMins);
+    if (!Number.isInteger(mins) || mins <= 0 || mins > 24 * 60) {
+      return NextResponse.json({ error: "durationMins must be a positive integer (max 1440)" }, { status: 400 });
+    }
+
+    const skill = await db.skill.findUnique({ where: { id: skillId } });
+    if (!skill || skill.userId !== userId) {
+      return NextResponse.json({ error: "Skill not found" }, { status: 404 });
+    }
 
     const learningSession = await db.learningSession.create({
       data: {
         userId,
         skillId,
-        date: new Date(date),
-        sessionType,
-        topic,
-        durationMins,
-        notes,
+        date: new Date(`${date}T12:00:00`),
+        sessionType: (sessionType as string) ?? "LEARNING",
+        topic: typeof topic === "string" ? topic : null,
+        durationMins: mins,
+        notes: typeof notes === "string" ? notes : null,
       },
       include: { skill: true },
     });

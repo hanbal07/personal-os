@@ -46,8 +46,16 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const body = await request.json();
+    let body: { type?: string; data?: Record<string, unknown> };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const { type, data } = body;
+    if (!type || typeof data !== "object" || data === null) {
+      return NextResponse.json({ error: "type and data are required" }, { status: 400 });
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -80,13 +88,30 @@ export async function POST(request: NextRequest) {
           create: { userId, date: today, glasses: data.glasses, target: data.target ?? 8 },
         });
         break;
-      case "sleep":
+      case "sleep": {
+        const hours = Number(data.hours);
+        const quality = Number(data.quality);
         result = await db.sleepRecord.upsert({
           where: { userId_date: { userId, date: today } },
-          update: { bedTime: data.bedTime, wakeTime: data.wakeTime, hours: data.hours, quality: data.quality, notes: data.notes },
-          create: { userId, date: today, bedTime: data.bedTime, wakeTime: data.wakeTime, hours: data.hours, quality: data.quality, notes: data.notes },
+          update: {
+            bedTime: data.bedTime ?? null,
+            wakeTime: data.wakeTime ?? null,
+            hours: Number.isFinite(hours) && hours > 0 && hours < 24 ? hours : null,
+            quality: Number.isInteger(quality) && quality >= 1 && quality <= 5 ? quality : null,
+            notes: data.notes ?? null,
+          },
+          create: {
+            userId,
+            date: today,
+            bedTime: data.bedTime ?? null,
+            wakeTime: data.wakeTime ?? null,
+            hours: Number.isFinite(hours) && hours > 0 && hours < 24 ? hours : null,
+            quality: Number.isInteger(quality) && quality >= 1 && quality <= 5 ? quality : null,
+            notes: data.notes ?? null,
+          },
         });
         break;
+      }
       default:
         return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
