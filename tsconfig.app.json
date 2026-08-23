@@ -1,0 +1,9 @@
+{
+  "name": "PersonalOS",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}

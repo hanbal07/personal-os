@@ -1,0 +1,565 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ───────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  settings    UserSettings?
+  dailyRoutines   DailyRoutine[]
+  prayerRecords   PrayerRecord[]
+  quranRecords    QuranRecord[]
+  daroodRecords   DaroodRecord[]
+  mealRecords     MealRecord[]
+  exerciseRecords ExerciseRecord[]
+  walkingRecords  WalkingRecord[]
+  sleepRecords    SleepRecord[]
+  learningSessions LearningSession[]
+  skills          Skill[]
+  projects        Project[]
+  habits          Habit[]
+  dailyReviews    DailyReview[]
+  weeklyReviews   WeeklyReview[]
+  disciplineScores DisciplineScore[]
+  distractionRecords DistractionRecord[]
+  failureRecords  FailureRecord[]
+  aiAnalyses      AIAnalysis[]
+  leadershipChallenges LeadershipChallenge[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Settings ───────────────────────────────────────────────────
+
+model UserSettings {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  timezone           String   @default("Asia/Karachi")
+  location           String   @default("Lahore, Pakistan")
+  latitude           Float    @default(31.5204)
+  longitude          Float    @default(74.3587)
+  prayerCalcMethod   String   @default("Karachi")
+  juristicMethod     String   @default("Hanafi")
+  wakeTime           String   @default("05:00")
+  sleepTime          String   @default("21:00")
+  dailyLearningHours Int      @default(8)
+  walkingTargetMins  Int      @default(30)
+  workoutTargetMins  Int      @default(45)
+  strictMode         Boolean  @default(true)
+  notificationsOn    Boolean  @default(true)
+  theme              String   @default("dark")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Daily Routine ──────────────────────────────────────────────
+
+model DailyRoutine {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  wakeUp    Boolean  @default(false)
+  wakeTime  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Prayer ─────────────────────────────────────────────────────
+
+model PrayerRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  prayer    PrayerName
+  status    PrayerStatus @default(MISSED)
+  time      String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, prayer])
+}
+
+enum PrayerName {
+  FAJR
+  DHUHR
+  ASR
+  MAGHRIB
+  ISHA
+}
+
+enum PrayerStatus {
+  COMPLETED
+  PARTIAL
+  MISSED
+}
+
+// ─── Quran ──────────────────────────────────────────────────────
+
+model QuranRecord {
+  id           String      @id @default(cuid())
+  userId       String
+  date         DateTime    @db.Date
+  status       DailyStatus @default(MISSED)
+  pagesRead    Int?
+  durationMins Int?
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Darood ─────────────────────────────────────────────────────
+
+model DaroodRecord {
+  id           String      @id @default(cuid())
+  userId       String
+  date         DateTime    @db.Date
+  count        Int         @default(0)
+  status       DailyStatus @default(MISSED)
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Meals ──────────────────────────────────────────────────────
+
+model MealRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mealType  MealType
+  content   String
+  water     Int?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, mealType])
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+// ─── Exercise ───────────────────────────────────────────────────
+
+model ExerciseRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  type         String
+  durationMins Int
+  completed    Boolean  @default(false)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, type])
+}
+
+// ─── Walking ────────────────────────────────────────────────────
+
+model WalkingRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  steps        Int?
+  durationMins Int?
+  completed    Boolean  @default(false)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Sleep ──────────────────────────────────────────────────────
+
+model SleepRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  bedTime      String?
+  wakeTime     String?
+  hours        Float?
+  quality      Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Learning ───────────────────────────────────────────────────
+
+model Skill {
+  id             String      @id @default(cuid())
+  userId         String
+  name           String
+  slug           String
+  description    String?
+  phase          SkillPhase  @default(FUNDAMENTALS)
+  level          SkillLevel  @default(BEGINNER)
+  topicsTotal    Int         @default(0)
+  topicsComplete Int         @default(0)
+  practiceHours  Float       @default(0)
+  projectCount   Int         @default(0)
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics   Topic[]
+  sessions LearningSession[]
+
+  @@unique([userId, slug])
+}
+
+enum SkillPhase {
+  FUNDAMENTALS
+  INTERMEDIATE
+  ADVANCED
+  MASTERY
+}
+
+enum SkillLevel {
+  BEGINNER
+  ELEMENTARY
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+model Topic {
+  id          String      @id @default(cuid())
+  skillId     String
+  title       String
+  description String?
+  phase       SkillPhase  @default(FUNDAMENTALS)
+  status      TopicStatus @default(NOT_STARTED)
+  order       Int         @default(0)
+  durationMins Int?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+}
+
+enum TopicStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model LearningSession {
+  id           String      @id @default(cuid())
+  userId       String
+  skillId      String
+  date         DateTime    @db.Date
+  sessionType  SessionType @default(LEARNING)
+  topic        String?
+  durationMins Int
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+}
+
+enum SessionType {
+  LEARNING
+  PRACTICE
+  BUILDING
+  REVIEW
+  DOCUMENTATION
+}
+
+// ─── Projects ───────────────────────────────────────────────────
+
+model Project {
+  id           String        @id @default(cuid())
+  userId       String
+  title        String
+  description  String?
+  skills       String?
+  technologies String?
+  startDate    DateTime?
+  targetDate   DateTime?
+  phase        ProjectPhase  @default(IDEA)
+  completion   Int           @default(0)
+  githubUrl    String?
+  demoUrl      String?
+  notes        String?
+  lessonsLearned String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks ProjectTask[]
+}
+
+enum ProjectPhase {
+  IDEA
+  PLANNING
+  DEVELOPMENT
+  TESTING
+  DOCUMENTATION
+  GITHUB
+  COMPLETED
+}
+
+model ProjectTask {
+  id          String      @id @default(cuid())
+  projectId   String
+  title       String
+  completed   Boolean     @default(false)
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ─── Habits ─────────────────────────────────────────────────────
+
+model Habit {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  category  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+}
+
+model HabitCompletion {
+  id       String      @id @default(cuid())
+  habitId  String
+  date     DateTime    @db.Date
+  status   DailyStatus @default(MISSED)
+  notes    String?
+  createdAt DateTime   @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+}
+
+// ─── Reviews ────────────────────────────────────────────────────
+
+model DailyReview {
+  id             String      @id @default(cuid())
+  userId         String
+  date           DateTime    @db.Date
+  accomplishments String?
+  failures       String?
+  reasons        String?
+  learned        String?
+  distractions   String?
+  tomorrowPlan   String?
+  dayScore       Int?
+  createdAt      DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model WeeklyReview {
+  id                String   @id @default(cuid())
+  userId            String
+  weekStart         DateTime @db.Date
+  disciplineScore   Float?
+  learningHours     Float?
+  projectsCompleted Int?
+  healthConsistency Float?
+  islamicConsistency Float?
+  avgSleepHours     Float?
+  biggestWin        String?
+  biggestProblem    String?
+  repeatedFailure   String?
+  recommendedChange String?
+  nextWeekPriorities String?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
+
+// ─── Discipline ─────────────────────────────────────────────────
+
+model DisciplineScore {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  score     Float
+  breakdown Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// ─── Distractions & Failures ────────────────────────────────────
+
+model DistractionRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime @db.Date
+  time       String?
+  type       String?
+  durationMins Int?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FailureRecord {
+  id           String      @id @default(cuid())
+  userId       String
+  date         DateTime    @db.Date
+  task         String
+  reason       FailureReason
+  notes        String?
+  patternNotes String?
+  createdAt    DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum FailureReason {
+  OVERSLEPT
+  LAZINESS
+  PHONE_DISTRACTION
+  SOCIAL_MEDIA
+  TIREDNESS
+  FAMILY_RESPONSIBILITY
+  POOR_PLANNING
+  TASK_TOO_DIFFICULT
+  LOST_FOCUS
+  UNEXPECTED_EVENT
+  OTHER
+}
+
+// ─── AI Analysis ────────────────────────────────────────────────
+
+model AIAnalysis {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  type      String
+  content   Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Leadership ─────────────────────────────────────────────────
+
+model LeadershipChallenge {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  weekStart   DateTime @db.Date
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions LeadershipCompletion[]
+}
+
+model LeadershipCompletion {
+  id          String   @id @default(cuid())
+  challengeId String
+  date        DateTime @db.Date
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  challenge LeadershipChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+}
+
+// ─── Enums ──────────────────────────────────────────────────────
+
+enum DailyStatus {
+  COMPLETED
+  PARTIAL
+  MISSED
+}
