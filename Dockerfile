@@ -6,10 +6,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-COPY prisma ./prisma/
-RUN npx prisma generate
+RUN npm install --force
 
-RUN npm ci --force
+RUN npx prisma@6.19.3 generate
 
 # Rebuild the source code only when needed
 FROM base AS builder
