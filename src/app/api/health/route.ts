@@ -16,11 +16,12 @@ export async function GET(request: NextRequest) {
     const dateStr = searchParams.get("date");
     const date = dateStr ? new Date(dateStr) : getTodayDate();
 
-    const [meals, walking, exercise, sleep] = await Promise.all([
+    const [meals, walking, exercise, sleep, water] = await Promise.all([
       db.mealRecord.findMany({ where: { userId, date } }),
       db.walkingRecord.findUnique({ where: { userId_date: { userId, date } } }),
       db.exerciseRecord.findMany({ where: { userId, date } }),
       db.sleepRecord.findUnique({ where: { userId_date: { userId, date } } }),
+      db.waterRecord.findUnique({ where: { userId_date: { userId, date } } }),
     ]);
 
     return NextResponse.json({
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
       walking,
       exercise,
       sleep,
+      water,
     });
   } catch (error) {
     console.error("Health GET error:", error);
@@ -69,6 +71,13 @@ export async function POST(request: NextRequest) {
         await db.exerciseRecord.deleteMany({ where: { userId, date: today, type: data.type } });
         result = await db.exerciseRecord.create({
           data: { userId, date: today, type: data.type, durationMins: data.durationMins, completed: data.completed, notes: data.notes },
+        });
+        break;
+      case "water":
+        result = await db.waterRecord.upsert({
+          where: { userId_date: { userId, date: today } },
+          update: { glasses: data.glasses, target: data.target ?? 8 },
+          create: { userId, date: today, glasses: data.glasses, target: data.target ?? 8 },
         });
         break;
       case "sleep":

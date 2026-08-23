@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
       projects,
       habits,
       disciplineScore,
+      waterRecord,
     ] = await Promise.all([
       db.dailyRoutine.findUnique({ where: { userId_date: { userId, date: today } } }),
       db.prayerRecord.findMany({ where: { userId, date: today } }),
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
       db.project.findMany({ where: { userId, phase: { not: "COMPLETED" } }, take: 5 }),
       db.habit.findMany({ where: { userId, active: true } }),
       db.disciplineScore.findUnique({ where: { userId_date: { userId, date: today } } }),
+      db.waterRecord.findUnique({ where: { userId_date: { userId, date: today } } }),
     ]);
 
     const prayerTimes = getPrayerTimesForDate(new Date(), locationConfig).filter((p) => p.name !== "Sunrise");
@@ -150,7 +152,8 @@ export async function GET(request: NextRequest) {
       health: {
         walking: { completed: walking?.completed ?? false, targetMins: settings?.walkingTargetMins ?? 30 },
         exercise: { completed: exercise.filter((e) => e.completed).length, total: exercise.length, targetMins: settings?.workoutTargetMins ?? 45 },
-        water: 0,
+        water: waterRecord?.glasses ?? 0,
+        waterTarget: waterRecord?.target ?? 8,
       },
       learning: {
         hours: Math.round(learningSessions.reduce((sum: number, s: { durationMins: number }) => sum + s.durationMins, 0) / 60 * 10) / 10,

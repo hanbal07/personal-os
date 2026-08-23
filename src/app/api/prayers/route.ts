@@ -7,6 +7,9 @@ export async function GET(request: NextRequest) {
   const lng = parseFloat(searchParams.get("lng") || "74.3587");
   const method = searchParams.get("method") || "Karachi";
   const madhab = searchParams.get("madhab") || "Hanafi";
+  const dateStr = searchParams.get("date");
+  const parsedDate = dateStr ? new Date(`${dateStr}T12:00:00`) : null;
+  const targetDate = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : new Date();
 
   const config: LocationConfig = {
     latitude: lat,
@@ -15,12 +18,11 @@ export async function GET(request: NextRequest) {
     madhab,
   };
 
-  const today = new Date();
-  const prayers = getPrayerTimesForDate(today, config);
+  const prayers = getPrayerTimesForDate(targetDate, config);
   const nextPrayer = getNextPrayer(config);
 
   return NextResponse.json({
-    date: today.toISOString().split("T")[0],
+    date: targetDate.toISOString().split("T")[0],
     location: { latitude: lat, longitude: lng },
     method,
     madhab,
