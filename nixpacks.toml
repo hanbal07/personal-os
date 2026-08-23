@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm install --force"]
+
+[phases.build]
+cmds = ["npx prisma@6.19.3 generate", "npx next build"]
+
+[phases.start]
+cmd = "npm start"
