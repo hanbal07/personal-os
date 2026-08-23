@@ -12,7 +12,13 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const { period = "week" } = await request.json();
+    let period = "week";
+    try {
+      const body = await request.json();
+      if (body && typeof body.period === "string") period = body.period;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const days = period === "week" ? 7 : period === "month" ? 30 : 7;
     const { start } = getDateRange(days);
     const today = getTodayDate();
