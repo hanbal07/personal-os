@@ -18,10 +18,6 @@ export async function GET(request: NextRequest) {
       where: { userId_date: { userId, date: today } },
     });
 
-    if (!routine) {
-      return NextResponse.json({ routine: null, tasks: [] });
-    }
-
     const habits = await db.habit.findMany({
       where: { userId, active: true },
       orderBy: { sortOrder: "asc" },
@@ -42,7 +38,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ routine, tasks });
+    return NextResponse.json({ routine: routine || null, tasks });
   } catch (error) {
     console.error("Routine GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

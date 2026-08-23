@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         lastStudied: lastSession ? lastSession.date.toISOString().split("T")[0] : null,
         currentTopic: currentTopic?.title || "-",
         nextTopic: nextTopic?.title || "-",
+        topics: skill.topics.map((t) => ({ id: t.id, title: t.title, status: t.status })),
       };
     });
 
