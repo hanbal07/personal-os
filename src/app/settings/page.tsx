@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Settings, User, Clock, MapPin, Bell, Moon, Target, Shield, Download } from "lucide-react";
-import { useState } from "react";
+import { User, Clock, MapPin, Shield } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const timezones = [
   { value: "Asia/Karachi", label: "Asia/Karachi (PKT)" },
@@ -24,23 +24,111 @@ const calcMethods = [
   { value: "Makkah", label: "Umm Al-Qura" },
 ];
 
+const juristicMethods = [
+  { value: "Hanafi", label: "Hanafi" },
+  { value: "Shafi", label: "Shafi'i / Maliki / Hanbali" },
+];
+
+interface SettingsForm {
+  timezone: string;
+  location: string;
+  latitude: string;
+  longitude: string;
+  prayerCalcMethod: string;
+  juristicMethod: string;
+  wakeTime: string;
+  sleepTime: string;
+  dailyLearningHours: string;
+  walkingTargetMins: string;
+  workoutTargetMins: string;
+  strictMode: boolean;
+  notificationsOn: boolean;
+}
+
+const defaults: SettingsForm = {
+  timezone: "Asia/Karachi",
+  location: "",
+  latitude: "",
+  longitude: "",
+  prayerCalcMethod: "Karachi",
+  juristicMethod: "Hanafi",
+  wakeTime: "05:00",
+  sleepTime: "21:00",
+  dailyLearningHours: "8",
+  walkingTargetMins: "30",
+  workoutTargetMins: "45",
+  strictMode: true,
+  notificationsOn: true,
+};
+
 export default function SettingsPage() {
-  const [settings, setSettings] = useState({
-    name: "User",
-    timezone: "Asia/Karachi",
-    location: "Lahore, Pakistan",
-    latitude: "31.5204",
-    longitude: "74.3587",
-    prayerMethod: "Karachi",
-    juristicMethod: "Hanafi",
-    wakeTime: "05:00",
-    sleepTime: "21:00",
-    learningHours: "8",
-    walkingTarget: "30",
-    workoutTarget: "45",
-    strictMode: true,
-    notifications: true,
-  });
+  const [email, setEmail] = useState("");
+  const [settings, setSettings] = useState<SettingsForm>(defaults);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [res, sessionRes] = await Promise.all([
+          fetch("/api/settings"),
+          fetch("/api/auth/session"),
+        ]);
+        if (sessionRes.ok) {
+          const s = await sessionRes.json();
+          setEmail(s?.user?.email || "");
+        }
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.settings) {
+          setSettings({
+            timezone: data.settings.timezone || defaults.timezone,
+            location: data.settings.location || "",
+            latitude: String(data.settings.latitude ?? ""),
+            longitude: String(data.settings.longitude ?? ""),
+            prayerCalcMethod: data.settings.prayerCalcMethod || "Karachi",
+            juristicMethod: data.settings.juristicMethod || "Hanafi",
+            wakeTime: data.settings.wakeTime || "05:00",
+            sleepTime: data.settings.sleepTime || "21:00",
+            dailyLearningHours: String(data.settings.dailyLearningHours ?? 8),
+            walkingTargetMins: String(data.settings.walkingTargetMins ?? 30),
+            workoutTargetMins: String(data.settings.workoutTargetMins ?? 45),
+            strictMode: !!data.settings.strictMode,
+            notificationsOn: data.settings.notificationsOn !== false,
+          });
+        }
+      } catch {
+        setError("Failed to load settings. Please refresh.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) throw new Error();
+      setSavedMsg(true);
+      setTimeout(() => setSavedMsg(false), 2500);
+    } catch {
+      setError("Could not save settings. Check values and try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggle = (key: "strictMode" | "notificationsOn") =>
+    setSettings((s) => ({ ...s, [key]: !s[key] }));
 
   return (
     <AppShell>
@@ -50,133 +138,150 @@ export default function SettingsPage() {
           <p className="text-sm text-zinc-500 mt-1">Configure your PersonalOS</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="h-4 w-4 text-zinc-500" />
-                Profile
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Name</label>
-                <Input value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Timezone</label>
-                <Select options={timezones} value={settings.timezone} onChange={(e) => setSettings({ ...settings, timezone: e.target.value })} />
-              </div>
-            </CardContent>
-          </Card>
+        {error && (
+          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-zinc-500" />
-                Location & Prayer
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Location</label>
-                <Input value={settings.location} onChange={(e) => setSettings({ ...settings, location: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Latitude</label>
-                  <Input value={settings.latitude} onChange={(e) => setSettings({ ...settings, latitude: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Longitude</label>
-                  <Input value={settings.longitude} onChange={(e) => setSettings({ ...settings, longitude: e.target.value })} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Calculation Method</label>
-                <Select options={calcMethods} value={settings.prayerMethod} onChange={(e) => setSettings({ ...settings, prayerMethod: e.target.value })} />
-              </div>
-            </CardContent>
-          </Card>
+        {loading ? (
+          <Card><CardContent className="p-6 text-sm text-zinc-500">Loading settings…</CardContent></Card>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <User className="h-4 w-4 text-zinc-500" />
+                    Profile
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Account</label>
+                    <Input value={email} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Timezone</label>
+                    <Select options={timezones} value={settings.timezone} onChange={(e) => setSettings({ ...settings, timezone: e.target.value })} />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-4 w-4 text-zinc-500" />
-                Schedule
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Wake Time</label>
-                  <Input type="time" value={settings.wakeTime} onChange={(e) => setSettings({ ...settings, wakeTime: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Sleep Time</label>
-                  <Input type="time" value={settings.sleepTime} onChange={(e) => setSettings({ ...settings, sleepTime: e.target.value })} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider">Daily Learning Target (hours)</label>
-                <Input type="number" value={settings.learningHours} onChange={(e) => setSettings({ ...settings, learningHours: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Walking (min)</label>
-                  <Input type="number" value={settings.walkingTarget} onChange={(e) => setSettings({ ...settings, walkingTarget: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Workout (min)</label>
-                  <Input type="number" value={settings.workoutTarget} onChange={(e) => setSettings({ ...settings, workoutTarget: e.target.value })} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-zinc-500" />
+                    Location & Prayer
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Location</label>
+                    <Input value={settings.location} onChange={(e) => setSettings({ ...settings, location: e.target.value })} placeholder="Lahore, Pakistan" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider">Latitude</label>
+                      <Input type="number" step="any" value={settings.latitude} onChange={(e) => setSettings({ ...settings, latitude: e.target.value })} placeholder="31.5204" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider">Longitude</label>
+                      <Input type="number" step="any" value={settings.longitude} onChange={(e) => setSettings({ ...settings, longitude: e.target.value })} placeholder="74.3587" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Calculation Method</label>
+                    <Select options={calcMethods} value={settings.prayerCalcMethod} onChange={(e) => setSettings({ ...settings, prayerCalcMethod: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Juristic Method</label>
+                    <Select options={juristicMethods} value={settings.juristicMethod} onChange={(e) => setSettings({ ...settings, juristicMethod: e.target.value })} />
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4 text-zinc-500" />
-                Preferences
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-zinc-300">Strict Mode</p>
-                  <p className="text-xs text-zinc-500">Highlight missed tasks and show warnings</p>
-                </div>
-                <button
-                  onClick={() => setSettings({ ...settings, strictMode: !settings.strictMode })}
-                  className={`w-11 h-6 rounded-full transition-colors ${settings.strictMode ? "bg-white" : "bg-zinc-700"}`}
-                >
-                  <div className={`h-5 w-5 rounded-full bg-zinc-950 transition-transform ${settings.strictMode ? "translate-x-5" : "translate-x-0.5"}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-zinc-300">Notifications</p>
-                  <p className="text-xs text-zinc-500">Prayer and task reminders</p>
-                </div>
-                <button
-                  onClick={() => setSettings({ ...settings, notifications: !settings.notifications })}
-                  className={`w-11 h-6 rounded-full transition-colors ${settings.notifications ? "bg-white" : "bg-zinc-700"}`}
-                >
-                  <div className={`h-5 w-5 rounded-full bg-zinc-950 transition-transform ${settings.notifications ? "translate-x-5" : "translate-x-0.5"}`} />
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-zinc-500" />
+                    Schedule
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider">Wake Time</label>
+                      <Input type="time" value={settings.wakeTime} onChange={(e) => setSettings({ ...settings, wakeTime: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider">Sleep Time</label>
+                      <Input type="time" value={settings.sleepTime} onChange={(e) => setSettings({ ...settings, sleepTime: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Daily Learning Target (hours)</label>
+                    <Input type="number" min="0" max="24" value={settings.dailyLearningHours} onChange={(e) => setSettings({ ...settings, dailyLearningHours: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider">Walking Target (min)</label>
+                      <Input type="number" min="0" max="600" value={settings.walkingTargetMins} onChange={(e) => setSettings({ ...settings, walkingTargetMins: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 uppercase tracking-wider">Workout Target (min)</label>
+                      <Input type="number" min="0" max="600" value={settings.workoutTargetMins} onChange={(e) => setSettings({ ...settings, workoutTargetMins: e.target.value })} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        <div className="flex gap-3">
-          <Button>Save Settings</Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export Data
-          </Button>
-        </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-zinc-500" />
+                    Preferences
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-zinc-300">Strict Mode</p>
+                      <p className="text-xs text-zinc-500">Highlight missed tasks and show warnings</p>
+                    </div>
+                    <button
+                      onClick={() => toggle("strictMode")}
+                      className={`w-11 h-6 rounded-full transition-colors ${settings.strictMode ? "bg-white" : "bg-zinc-700"}`}
+                    >
+                      <div className={`h-5 w-5 rounded-full bg-zinc-950 transition-transform ${settings.strictMode ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-zinc-300">Notifications</p>
+                      <p className="text-xs text-zinc-500">Prayer and task reminders</p>
+                    </div>
+                    <button
+                      onClick={() => toggle("notificationsOn")}
+                      className={`w-11 h-6 rounded-full transition-colors ${settings.notificationsOn ? "bg-white" : "bg-zinc-700"}`}
+                    >
+                      <div className={`h-5 w-5 rounded-full bg-zinc-950 transition-transform ${settings.notificationsOn ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button onClick={save} disabled={saving}>
+                {saving ? "Saving…" : savedMsg ? "Saved ✓" : "Save Settings"}
+              </Button>
+              {!savedMsg && !error && (
+                <span className="text-xs text-zinc-600">Changes apply to your account immediately after saving.</span>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </AppShell>
   );

@@ -5,147 +5,143 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Target, BookOpen, Code, Database, Globe, Brain, Cpu, ArrowRight, Clock, CheckCircle2, Circle, Lock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { BookOpen, Clock, CheckCircle2, Circle, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 
-interface SkillCard {
+interface Topic {
+  id: string;
+  title: string;
+  status: string;
+}
+
+interface Skill {
+  id: string;
   name: string;
-  slug: string;
-  icon: React.ReactNode;
   phase: string;
   level: string;
   progress: number;
   topicsCompleted: number;
   topicsTotal: number;
   practiceHours: number;
-  lastStudied: string;
+  lastStudied: string | null;
   currentTopic: string;
   nextTopic: string;
-  color: string;
+  topics: Topic[];
 }
 
-const skills: SkillCard[] = [
-  {
-    name: "Python",
-    slug: "python",
-    icon: <Code className="h-5 w-5" />,
-    phase: "Fundamentals",
-    level: "Beginner",
-    progress: 35,
-    topicsCompleted: 7,
-    topicsTotal: 20,
-    practiceHours: 12,
-    lastStudied: "Today",
-    currentTopic: "Functions",
-    nextTopic: "Data Structures",
-    color: "bg-yellow-900/50 text-yellow-400",
-  },
-  {
-    name: "Git/GitHub",
-    slug: "git",
-    icon: <Globe className="h-5 w-5" />,
-    phase: "Fundamentals",
-    level: "Beginner",
-    progress: 20,
-    topicsCompleted: 3,
-    topicsTotal: 15,
-    practiceHours: 4,
-    lastStudied: "Yesterday",
-    currentTopic: "Commits & Branches",
-    nextTopic: "Merge & PRs",
-    color: "bg-orange-900/50 text-orange-400",
-  },
-  {
-    name: "Data Science",
-    slug: "data-science",
-    icon: <Database className="h-5 w-5" />,
-    phase: "Fundamentals",
-    level: "Not Started",
-    progress: 0,
-    topicsCompleted: 0,
-    topicsTotal: 18,
-    practiceHours: 0,
-    lastStudied: "-",
-    currentTopic: "-",
-    nextTopic: "NumPy Basics",
-    color: "bg-blue-900/50 text-blue-400",
-  },
-  {
-    name: "Web Development",
-    slug: "web-dev",
-    icon: <Globe className="h-5 w-5" />,
-    phase: "Fundamentals",
-    level: "Not Started",
-    progress: 0,
-    topicsCompleted: 0,
-    topicsTotal: 25,
-    practiceHours: 0,
-    lastStudied: "-",
-    currentTopic: "-",
-    nextTopic: "HTML & CSS Basics",
-    color: "bg-purple-900/50 text-purple-400",
-  },
-  {
-    name: "Machine Learning",
-    slug: "ml",
-    icon: <Brain className="h-5 w-5" />,
-    phase: "Fundamentals",
-    level: "Not Started",
-    progress: 0,
-    topicsCompleted: 0,
-    topicsTotal: 22,
-    practiceHours: 0,
-    lastStudied: "-",
-    currentTopic: "-",
-    nextTopic: "Math Fundamentals",
-    color: "bg-pink-900/50 text-pink-400",
-  },
-  {
-    name: "Deep Learning",
-    slug: "dl",
-    icon: <Cpu className="h-5 w-5" />,
-    phase: "Fundamentals",
-    level: "Not Started",
-    progress: 0,
-    topicsCompleted: 0,
-    topicsTotal: 20,
-    practiceHours: 0,
-    lastStudied: "-",
-    currentTopic: "-",
-    nextTopic: "Neural Network Basics",
-    color: "bg-red-900/50 text-red-400",
-  },
+const sessionTypes = [
+  { value: "LEARNING", label: "Learning" },
+  { value: "PRACTICE", label: "Practice" },
+  { value: "BUILDING", label: "Building" },
+  { value: "REVIEW", label: "Review" },
+  { value: "DOCUMENTATION", label: "Documentation" },
 ];
 
-const pythonTopics = [
-  { title: "Syntax & Variables", status: "completed" as const },
-  { title: "Data Types", status: "completed" as const },
-  { title: "Conditions", status: "completed" as const },
-  { title: "Loops", status: "completed" as const },
-  { title: "Functions", status: "in-progress" as const },
-  { title: "Data Structures", status: "not-started" as const },
-  { title: "File Handling", status: "not-started" as const },
-  { title: "Exceptions", status: "not-started" as const },
-  { title: "Modules", status: "not-started" as const },
-  { title: "OOP", status: "not-started" as const },
-  { title: "Packages", status: "not-started" as const },
-  { title: "Virtual Environments", status: "not-started" as const },
-  { title: "APIs", status: "not-started" as const },
-  { title: "Testing", status: "not-started" as const },
-  { title: "Clean Code", status: "not-started" as const },
-];
-
-function TopicStatusIcon({ status }: { status: string }) {
-  switch (status) {
-    case "completed":
-      return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
-    case "in-progress":
-      return <Clock className="h-4 w-4 text-yellow-400" />;
-    default:
-      return <Circle className="h-4 w-4 text-zinc-600" />;
-  }
-}
+const topicIcon = (status: string) => {
+  if (status === "COMPLETED") return <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />;
+  if (status === "IN_PROGRESS") return <Clock className="h-4 w-4 text-yellow-400 flex-shrink-0" />;
+  return <Circle className="h-4 w-4 text-zinc-600 flex-shrink-0" />;
+};
 
 export default function LearningPage() {
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [showSession, setShowSession] = useState(false);
+
+  const [form, setForm] = useState({ skillId: "", sessionType: "LEARNING", durationMins: "60", topic: "" });
+  const [logging, setLogging] = useState(false);
+  const [logMsg, setLogMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/skills");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setSkills(data.skills || []);
+      if (data.skills?.length > 0 && !form.skillId) {
+        setForm((f) => ({ ...f, skillId: data.skills[0].id }));
+      }
+    } catch {
+      setError("Failed to load your learning roadmap. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const cycleTopic = async (skillId: string, topic: Topic) => {
+    const order = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "NOT_STARTED"];
+    const next = order[order.indexOf(topic.status)] ?? "IN_PROGRESS";
+    setError(null);
+    try {
+      const res = await fetch(`/api/skills/${skillId}/topics`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicId: topic.id, status: next }),
+      });
+      if (!res.ok) throw new Error();
+      setSkills((prev) =>
+        prev.map((s) =>
+          s.id === skillId
+            ? {
+                ...s,
+                topics: s.topics.map((t) => (t.id === topic.id ? { ...t, status: next } : t)),
+                topicsCompleted: s.topics.filter(
+                  (t) => (t.id === topic.id ? next : t.status) === "COMPLETED"
+                ).length,
+              }
+            : s
+        )
+      );
+      load();
+    } catch {
+      setError("Could not update topic. Try again.");
+    }
+  };
+
+  const logSession = async () => {
+    if (logging) return;
+    const duration = parseInt(form.durationMins);
+    if (!form.skillId || !Number.isInteger(duration) || duration < 1 || duration > 1440) {
+      setError("Pick a skill and a duration between 1 and 1440 minutes.");
+      return;
+    }
+    setLogging(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/learning", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skillId: form.skillId,
+          sessionType: form.sessionType,
+          durationMins: duration,
+          topic: form.topic.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setShowSession(false);
+      setForm((f) => ({ ...f, topic: "" }));
+      setLogMsg("Session logged ✓");
+      setTimeout(() => setLogMsg(null), 2500);
+      load();
+    } catch {
+      setError("Could not log the session. Check values and try again.");
+    } finally {
+      setLogging(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -153,101 +149,132 @@ export default function LearningPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Learning Roadmap</h1>
             <p className="text-sm text-zinc-500 mt-1">
-              Fundamentals → Intermediate → Advanced
+              Fundamentals → Intermediate → Advanced{logMsg ? <span className="ml-2 text-emerald-400">· {logMsg}</span> : null}
             </p>
           </div>
-          <Button variant="outline" size="sm">
-            Today&apos;s Session
+          <Button onClick={() => setShowSession(!showSession)}>
+            <BookOpen className="h-4 w-4 mr-2" />
+            Log Session
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {skills.map((skill) => (
-            <Card key={skill.slug} className="hover:border-zinc-700 transition-colors">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${skill.color}`}>
-                      {skill.icon}
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{skill.name}</CardTitle>
-                      <p className="text-xs text-zinc-500">
-                        {skill.phase} · {skill.level}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={skill.progress > 0 ? "secondary" : "outline"}>
-                    {skill.progress}%
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Progress value={skill.progress} />
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="text-zinc-500">Topics</div>
-                  <div className="text-zinc-400 text-right">
-                    {skill.topicsCompleted}/{skill.topicsTotal}
-                  </div>
-                  <div className="text-zinc-500">Practice Hours</div>
-                  <div className="text-zinc-400 text-right">{skill.practiceHours}h</div>
-                  <div className="text-zinc-500">Last Studied</div>
-                  <div className="text-zinc-400 text-right">{skill.lastStudied}</div>
-                </div>
-                <div className="pt-2 border-t border-zinc-800">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-500">Current:</span>
-                    <span className="text-zinc-300">{skill.currentTopic}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs mt-1">
-                    <span className="text-zinc-500">Next:</span>
-                    <span className="text-yellow-400">{skill.nextTopic}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {error && (
+          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Code className="h-4 w-4 text-yellow-400" />
-                Python — Topic Roadmap
-              </CardTitle>
-              <Badge variant="secondary">7 / 20 completed</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {pythonTopics.map((topic, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-zinc-800/30 transition-colors"
-                >
-                  <TopicStatusIcon status={topic.status} />
-                  <span
-                    className={`text-sm ${
-                      topic.status === "completed"
-                        ? "text-zinc-500"
-                        : topic.status === "in-progress"
-                        ? "text-white font-medium"
-                        : "text-zinc-400"
-                    }`}
-                  >
-                    {i + 1}. {topic.title}
-                  </span>
-                  {topic.status === "in-progress" && (
-                    <Badge variant="warning" className="ml-auto">
-                      In Progress
-                    </Badge>
+        {showSession && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Log Learning Session</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+              <Select
+                options={skills.map((s) => ({ value: s.id, label: s.name }))}
+                value={form.skillId}
+                onChange={(e) => setForm({ ...form, skillId: e.target.value })}
+              />
+              <Select
+                options={sessionTypes}
+                value={form.sessionType}
+                onChange={(e) => setForm({ ...form, sessionType: e.target.value })}
+              />
+              <Input
+                type="number"
+                min="1"
+                max="1440"
+                value={form.durationMins}
+                onChange={(e) => setForm({ ...form, durationMins: e.target.value })}
+                placeholder="Minutes"
+              />
+              <Input
+                value={form.topic}
+                onChange={(e) => setForm({ ...form, topic: e.target.value })}
+                placeholder="Topic (optional)"
+              />
+              <Button onClick={logSession} disabled={logging}>
+                {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Session"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {loading ? (
+          <Card><CardContent className="p-6 text-sm text-zinc-500">Loading your roadmap…</CardContent></Card>
+        ) : skills.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-zinc-500">
+              No skills configured yet. Skills and their topic roadmaps are seeded for you — check back after setup.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {skills.map((skill) => (
+              <Card key={skill.id} className="hover:border-zinc-700 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-300 font-bold">
+                        {skill.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{skill.name}</CardTitle>
+                        <p className="text-xs text-zinc-500">{skill.phase} · {skill.level}</p>
+                      </div>
+                    </div>
+                    <Badge variant={skill.progress > 0 ? "secondary" : "outline"}>{skill.progress}%</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Progress value={skill.progress} />
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="text-zinc-500">Topics</div>
+                    <div className="text-zinc-400 text-right">{skill.topicsCompleted}/{skill.topicsTotal}</div>
+                    <div className="text-zinc-500">Practice Hours</div>
+                    <div className="text-zinc-400 text-right">{skill.practiceHours}h</div>
+                    <div className="text-zinc-500">Last Studied</div>
+                    <div className="text-zinc-400 text-right">{skill.lastStudied || "-"}</div>
+                  </div>
+                  {skill.nextTopic !== "-" && (
+                    <div className="pt-2 border-t border-zinc-800 flex items-center justify-between text-xs">
+                      <span className="text-zinc-500">Next:</span>
+                      <span className="text-yellow-400">{skill.nextTopic}</span>
+                    </div>
                   )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  <button
+                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 pt-1"
+                    onClick={() => setExpanded(expanded === skill.id ? null : skill.id)}
+                  >
+                    {expanded === skill.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    {expanded === skill.id ? "Hide" : "Show"} topics
+                  </button>
+                  {expanded === skill.id && (
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {skill.topics.length === 0 ? (
+                        <p className="text-xs text-zinc-600 py-2">No topics defined for this skill yet.</p>
+                      ) : (
+                        skill.topics.map((topic, i) => (
+                          <button
+                            key={topic.id}
+                            onClick={() => cycleTopic(skill.id, topic)}
+                            className="w-full flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-zinc-800/40 transition-colors text-left"
+                            title="Click to cycle status"
+                          >
+                            {topicIcon(topic.status)}
+                            <span className={`text-xs ${topic.status === "COMPLETED" ? "text-zinc-500 line-through" : topic.status === "IN_PROGRESS" ? "text-white font-medium" : "text-zinc-400"}`}>
+                              {i + 1}. {topic.title}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </AppShell>
   );

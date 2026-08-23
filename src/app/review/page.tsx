@@ -4,31 +4,116 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { ClipboardCheck, CheckCircle2, AlertCircle, Lightbulb, Target, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const todayStr = () => new Date().toISOString().split("T")[0];
+
+interface ReviewData {
+  accomplishments: string;
+  failures: string;
+  reasons: string;
+  learned: string;
+  distractions: string;
+  tomorrowPlan: string;
+  dayScore: number | null;
+}
+
+const emptyReview: ReviewData = {
+  accomplishments: "",
+  failures: "",
+  reasons: "",
+  learned: "",
+  distractions: "",
+  tomorrowPlan: "",
+  dayScore: null,
+};
 
 export default function DailyReviewPage() {
-  const [review, setReview] = useState({
-    accomplishments: "",
-    failures: "",
-    reasons: "",
-    learned: "",
-    distractions: "",
-    tomorrowPlan: "",
-  });
-  const [score, setScore] = useState(0);
+  const [review, setReview] = useState<ReviewData>(emptyReview);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/review?date=${todayStr()}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.review) {
+          setReview({
+            accomplishments: data.review.accomplishments || "",
+            failures: data.review.failures || "",
+            reasons: data.review.reasons || "",
+            learned: data.review.learned || "",
+            distractions: data.review.distractions || "",
+            tomorrowPlan: data.review.tomorrowPlan || "",
+            dayScore: data.review.dayScore ?? null,
+          });
+        }
+      } catch {
+        setError("Failed to load today's review. You can still write and save.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: todayStr(), ...review }),
+      });
+      if (!res.ok) throw new Error();
+      setSavedMsg(true);
+      setTimeout(() => setSavedMsg(false), 2500);
+    } catch {
+      setError("Could not save your review. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const update = (field: keyof ReviewData) => (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => setReview((r) => ({ ...r, [field]: e.target.value }));
+
+  const score = review.dayScore ? review.dayScore * 10 : 0;
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Daily Review</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Reflect on today. Plan for tomorrow.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Daily Review</h1>
+            <p className="text-sm text-zinc-500 mt-1">
+              Reflect on today. Plan for tomorrow.
+            </p>
+          </div>
+          <Button size="lg" onClick={save} disabled={saving}>
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            {saving ? "Saving…" : savedMsg ? "Saved ✓" : "Save Review"}
+            {!saving && !savedMsg && <ArrowRight className="h-4 w-4 ml-2" />}
+          </Button>
         </div>
+
+        {error && (
+          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <p className="text-sm text-zinc-600">Loading today&apos;s review…</p>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
@@ -42,7 +127,7 @@ export default function DailyReviewPage() {
               <CardContent>
                 <Textarea
                   value={review.accomplishments}
-                  onChange={(e) => setReview({ ...review, accomplishments: e.target.value })}
+                  onChange={update("accomplishments")}
                   placeholder="List your accomplishments..."
                   rows={3}
                 />
@@ -59,13 +144,13 @@ export default function DailyReviewPage() {
               <CardContent className="space-y-3">
                 <Textarea
                   value={review.failures}
-                  onChange={(e) => setReview({ ...review, failures: e.target.value })}
+                  onChange={update("failures")}
                   placeholder="What tasks were missed..."
                   rows={2}
                 />
                 <Textarea
                   value={review.reasons}
-                  onChange={(e) => setReview({ ...review, reasons: e.target.value })}
+                  onChange={update("reasons")}
                   placeholder="Why did these fail? Be honest..."
                   rows={2}
                 />
@@ -82,7 +167,7 @@ export default function DailyReviewPage() {
               <CardContent>
                 <Textarea
                   value={review.learned}
-                  onChange={(e) => setReview({ ...review, learned: e.target.value })}
+                  onChange={update("learned")}
                   placeholder="What did you learn today..."
                   rows={2}
                 />
@@ -96,7 +181,7 @@ export default function DailyReviewPage() {
               <CardContent>
                 <Textarea
                   value={review.distractions}
-                  onChange={(e) => setReview({ ...review, distractions: e.target.value })}
+                  onChange={update("distractions")}
                   placeholder="What pulled your focus..."
                   rows={2}
                 />
@@ -113,7 +198,7 @@ export default function DailyReviewPage() {
               <CardContent>
                 <Textarea
                   value={review.tomorrowPlan}
-                  onChange={(e) => setReview({ ...review, tomorrowPlan: e.target.value })}
+                  onChange={update("tomorrowPlan")}
                   placeholder="Tomorrow I will..."
                   rows={2}
                 />
@@ -128,28 +213,23 @@ export default function DailyReviewPage() {
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-4">
                 <ScoreGauge score={score} size="lg" />
-                <div className="w-full space-y-2">
-                  {[0, 20, 40, 60, 80, 100].map((s) => (
+                <div className="w-full grid grid-cols-2 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
                     <button
                       key={s}
-                      onClick={() => setScore(s)}
+                      onClick={() => setReview((r) => ({ ...r, dayScore: s }))}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        score === s
+                        review.dayScore === s
                           ? "bg-white/10 text-white"
                           : "text-zinc-500 hover:bg-zinc-800/50"
                       }`}
                     >
-                      {s}% - {s >= 90 ? "Excellent" : s >= 75 ? "Good" : s >= 60 ? "Moderate" : s >= 40 ? "Needs Work" : "Critical"}
+                      {s}/10 - {s >= 9 ? "Excellent" : s >= 7 ? "Good" : s >= 5 ? "Moderate" : s >= 3 ? "Needs Work" : "Critical"}
                     </button>
                   ))}
                 </div>
               </CardContent>
             </Card>
-
-            <Button className="w-full" size="lg">
-              Save Review
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
           </div>
         </div>
       </div>

@@ -7,85 +7,159 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Clock, Sun, Moon, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { Clock, Sun, Moon, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 
 interface RoutineTask {
   id: string;
-  time: string;
   label: string;
-  category: "routine" | "islamic" | "health" | "learning" | "personal" | "productivity";
+  category: string;
   completed: boolean;
   notes: string;
 }
 
-const defaultRoutine: RoutineTask[] = [
-  { id: "1", time: "05:00", label: "Wake Up", category: "routine", completed: false, notes: "" },
-  { id: "2", time: "05:10", label: "Fajr Prayer", category: "islamic", completed: false, notes: "" },
-  { id: "3", time: "05:30", label: "Quran Reading", category: "islamic", completed: false, notes: "" },
-  { id: "4", time: "06:00", label: "Walking / Home Exercise", category: "health", completed: false, notes: "" },
-  { id: "5", time: "06:45", label: "Freshen Up", category: "routine", completed: false, notes: "" },
-  { id: "6", time: "07:00", label: "Breakfast (Roti + Salan + Tea)", category: "health", completed: false, notes: "" },
-  { id: "7", time: "07:30", label: "Deep Work Block 1 - Concept Learning", category: "learning", completed: false, notes: "" },
-  { id: "8", time: "09:00", label: "Break", category: "personal", completed: false, notes: "" },
-  { id: "9", time: "09:15", label: "Deep Work Block 2 - Coding Practice", category: "learning", completed: false, notes: "" },
-  { id: "10", time: "10:45", label: "Break + Dhuhr Prayer", category: "islamic", completed: false, notes: "" },
-  { id: "11", time: "11:15", label: "Deep Work Block 3 - Project Development", category: "productivity", completed: false, notes: "" },
-  { id: "12", time: "12:45", label: "Lunch", category: "health", completed: false, notes: "" },
-  { id: "13", time: "13:30", label: "Asr Prayer", category: "islamic", completed: false, notes: "" },
-  { id: "14", time: "13:45", label: "Deep Work Block 4 - Revision / Documentation", category: "learning", completed: false, notes: "" },
-  { id: "15", time: "15:15", label: "Break + Snack", category: "health", completed: false, notes: "" },
-  { id: "16", time: "15:30", label: "Hands-on Practice / Projects", category: "productivity", completed: false, notes: "" },
-  { id: "17", time: "17:00", label: "Maghrib Prayer", category: "islamic", completed: false, notes: "" },
-  { id: "18", time: "17:15", label: "Darood-e-Pak", category: "islamic", completed: false, notes: "" },
-  { id: "19", time: "17:45", label: "Bestie Time", category: "personal", completed: false, notes: "" },
-  { id: "20", time: "19:45", label: "Dinner", category: "health", completed: false, notes: "" },
-  { id: "21", time: "20:00", label: "Isha Prayer", category: "islamic", completed: false, notes: "" },
-  { id: "22", time: "20:15", label: "Daily Review + Reflection", category: "personal", completed: false, notes: "" },
-  { id: "23", time: "20:45", label: "Wind Down", category: "routine", completed: false, notes: "" },
-  { id: "24", time: "21:00", label: "Sleep", category: "routine", completed: false, notes: "" },
-];
-
-const categoryColors: Record<string, string> = {
-  routine: "bg-zinc-800 text-zinc-400",
-  islamic: "bg-emerald-900/50 text-emerald-400",
-  health: "bg-blue-900/50 text-blue-400",
-  learning: "bg-purple-900/50 text-purple-400",
-  personal: "bg-yellow-900/50 text-yellow-400",
-  productivity: "bg-orange-900/50 text-orange-400",
-};
+const suggestedSchedule = [
+  ["05:00", "Wake Up"],
+  ["05:10", "Fajr Prayer"],
+  ["05:30", "Quran Reading"],
+  ["06:00", "Walking / Home Exercise"],
+  ["07:00", "Breakfast"],
+  ["07:30", "Deep Work Block 1 - Concept Learning"],
+  ["09:15", "Deep Work Block 2 - Coding Practice"],
+  ["12:45", "Lunch"],
+  ["13:30", "Asr Prayer"],
+  ["13:45", "Deep Work Block 3 - Project Development"],
+  ["17:00", "Maghrib Prayer"],
+  ["17:15", "Darood-e-Pak"],
+  ["19:45", "Dinner"],
+  ["20:00", "Isha Prayer"],
+  ["20:15", "Daily Review + Reflection"],
+  ["21:00", "Sleep"],
+] as const;
 
 export default function RoutinePage() {
-  const [tasks, setTasks] = useState<RoutineTask[]>(defaultRoutine);
-  const [editingNotes, setEditingNotes] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<RoutineTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wakeTime, setWakeTime] = useState("");
+  const [notes, setNotes] = useState("");
+  const [savedMsg, setSavedMsg] = useState(false);
 
-  const toggleTask = (id: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/routine");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setTasks(
+        (data.tasks || []).map((t: RoutineTask) => ({
+          ...t,
+          id: String(t.id),
+        }))
+      );
+      if (data.routine) {
+        setWakeTime(data.routine.wakeTime || "");
+        setNotes(data.routine.notes || "");
+      }
+    } catch {
+      setError("Failed to load your routine. Please refresh.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const postUpdate = async (
+    updates: Array<{ id: string; completed: boolean; notes?: string }>,
+    alsoRoutine?: boolean
+  ) => {
+    const res = await fetch("/api/routine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tasks: updates,
+        ...(alsoRoutine ? { wakeTime, notes } : {}),
+      }),
+    });
+    if (!res.ok) throw new Error();
   };
 
-  const updateNotes = (id: string, notes: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, notes } : t))
-    );
+  const toggleTask = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task || savingId) return;
+    const nextCompleted = !task.completed;
+
+    setSavingId(id);
+    setError(null);
+    const prev = tasks;
+    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, completed: nextCompleted } : t)));
+
+    try {
+      await postUpdate([{ id, completed: nextCompleted }]);
+    } catch {
+      setTasks(prev);
+      setError("Could not save. Try again.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const updateNotesLocal = (id: string, value: string) => {
+    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, notes: value } : t)));
+  };
+
+  const commitNote = async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    try {
+      await postUpdate([{ id, completed: task.completed, notes: task.notes }]);
+    } catch {
+      setError("Could not save note. Try again.");
+    }
+  };
+
+  const resetDay = async () => {
+    if (resetting) return;
+    setResetting(true);
+    setError(null);
+    const prev = tasks;
+    try {
+      setTasks((ts) => ts.map((t) => ({ ...t, completed: false })));
+      await postUpdate(tasks.map((t) => ({ id: t.id, completed: false })));
+    } catch {
+      setTasks(prev);
+      setError("Could not reset day. Try again.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const saveMeta = async () => {
+    setError(null);
+    try {
+      await fetch("/api/routine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wakeTime, notes }),
+      });
+      setSavedMsg(true);
+      setTimeout(() => setSavedMsg(false), 2000);
+    } catch {
+      setError("Could not save. Try again.");
+    }
   };
 
   const completedCount = tasks.filter((t) => t.completed).length;
-  const progress = Math.round((completedCount / tasks.length) * 100);
+  const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
-  const morningTasks = tasks.filter((t) => {
-    const h = parseInt(t.time.split(":")[0]);
-    return h >= 5 && h < 12;
-  });
-  const afternoonTasks = tasks.filter((t) => {
-    const h = parseInt(t.time.split(":")[0]);
-    return h >= 12 && h < 17;
-  });
-  const eveningTasks = tasks.filter((t) => {
-    const h = parseInt(t.time.split(":")[0]);
-    return h >= 17;
-  });
+  const categories = Array.from(new Set(tasks.map((t) => t.category)));
+  const sectionIcons = [Sun, Clock, Moon, CheckCircle2, AlertCircle, RefreshCw];
 
   const renderSection = (title: string, icon: React.ReactNode, items: RoutineTask[]) => (
     <Card>
@@ -101,68 +175,38 @@ export default function RoutinePage() {
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
-        {items.map((task) => (
-          <div
-            key={task.id}
-            className="flex items-start gap-3 py-2 group rounded-lg hover:bg-zinc-800/30 px-2 -mx-2 transition-colors"
-          >
-            <div className="pt-0.5">
-              <Checkbox
-                checked={task.completed}
-                onChange={() => toggleTask(task.id)}
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-600 font-mono w-12 flex-shrink-0">
-                  {task.time}
-                </span>
-                <span
-                  className={`text-sm ${
-                    task.completed
-                      ? "text-zinc-500 line-through"
-                      : "text-zinc-300"
-                  }`}
-                >
-                  {task.label}
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${categoryColors[task.category]}`}>
-                  {task.category}
-                </span>
+        {items.length === 0 ? (
+          <p className="text-sm text-zinc-600 py-2">No tasks in this group.</p>
+        ) : (
+          items.map((task) => (
+            <div
+              key={task.id}
+              className="flex items-start gap-3 py-2 group rounded-lg hover:bg-zinc-800/30 px-2 -mx-2 transition-colors"
+            >
+              <div className="pt-0.5">
+                <Checkbox checked={task.completed} onChange={() => toggleTask(task.id)} disabled={savingId === task.id} />
               </div>
-              {editingNotes === task.id ? (
-                <div className="mt-2 ml-14">
-                  <Input
-                    value={task.notes}
-                    onChange={(e) => updateNotes(task.id, e.target.value)}
-                    onBlur={() => setEditingNotes(null)}
-                    onKeyDown={(e) => e.key === "Enter" && setEditingNotes(null)}
-                    placeholder="Add note..."
-                    className="h-8 text-xs"
-                    autoFocus
-                  />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-sm ${task.completed ? "text-zinc-500 line-through" : "text-zinc-300"}`}>
+                    {task.label}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{task.category}</span>
                 </div>
-              ) : task.notes ? (
-                <p
-                  className="text-xs text-zinc-500 ml-14 mt-1 cursor-pointer hover:text-zinc-400"
-                  onClick={() => setEditingNotes(task.id)}
-                >
-                  {task.notes}
-                </p>
-              ) : (
-                <p
-                  className="text-xs text-zinc-700 ml-14 mt-1 cursor-pointer hover:text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setEditingNotes(task.id)}
-                >
-                  + Add note
-                </p>
-              )}
+                <Input
+                  value={task.notes}
+                  onChange={(e) => updateNotesLocal(task.id, e.target.value)}
+                  onBlur={() => commitNote(task.id)}
+                  placeholder="+ Add note"
+                  className="mt-1 h-7 text-xs bg-transparent border-transparent hover:border-zinc-700 focus:border-zinc-600 px-1"
+                />
+              </div>
+              {task.completed ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              ) : null}
             </div>
-            {task.completed ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-            ) : null}
-          </div>
-        ))}
+          ))
+        )}
       </CardContent>
     </Card>
   );
@@ -174,31 +218,95 @@ export default function RoutinePage() {
           <div>
             <h1 className="text-2xl font-bold text-white">Daily Routine</h1>
             <p className="text-sm text-zinc-500 mt-1">
-              {completedCount} of {tasks.length} tasks completed ({progress}%)
+              {loading
+                ? "Loading…"
+                : `${completedCount} of ${tasks.length} tasks completed (${progress}%)`}
             </p>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={resetDay} disabled={resetting || tasks.length === 0}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${resetting ? "animate-spin" : ""}`} />
             Reset Day
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {renderSection(
-            "Morning (5 AM - 12 PM)",
-            <Sun className="h-4 w-4 text-yellow-400" />,
-            morningTasks
-          )}
-          {renderSection(
-            "Afternoon (12 PM - 5 PM)",
-            <Clock className="h-4 w-4 text-orange-400" />,
-            afternoonTasks
-          )}
-          {renderSection(
-            "Evening (5 PM - 9 PM)",
-            <Moon className="h-4 w-4 text-blue-400" />,
-            eveningTasks
-          )}
-        </div>
+        {error && (
+          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            {error}
+          </div>
+        )}
+
+        {!loading && tasks.length === 0 && !error && (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-zinc-500">
+              No active disciplines configured yet. Add habits in Settings to build your daily routine.
+            </CardContent>
+          </Card>
+        )}
+
+        {tasks.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {categories.map((cat, i) => {
+              const Icon = sectionIcons[i % sectionIcons.length];
+              const items = tasks.filter((t) => t.category === cat);
+              return renderSection(
+                cat.charAt(0).toUpperCase() + cat.slice(1),
+                <Icon className="h-4 w-4 text-zinc-400" />,
+                items
+              );
+            })}
+          </div>
+        )}
+
+        {tasks.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Wake Time & Reflection</CardTitle>
+                <Button variant="outline" size="sm" onClick={saveMeta}>
+                  {savedMsg ? "Saved ✓" : "Save"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                  Actual Wake Time
+                </label>
+                <Input
+                  type="time"
+                  value={wakeTime}
+                  onChange={(e) => setWakeTime(e.target.value)}
+                  className="w-36"
+                />
+              </div>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="How did today go? Any obstacles?"
+                rows={3}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-zinc-500" />
+              Suggested Schedule (reference)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
+              {suggestedSchedule.map(([time, label]) => (
+                <div key={`${time}-${label}`} className="flex items-center gap-2 text-xs">
+                  <span className="text-zinc-600 font-mono">{time}</span>
+                  <span className="text-zinc-500">{label}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
   );
