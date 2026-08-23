@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle2, Circle, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface DayRecord {
-  date: number;
+  date: string;
   disciplineScore: number;
   prayers: number;
   quran: boolean;
@@ -17,47 +17,59 @@ interface DayRecord {
   workout: boolean;
   meals: number;
   deepWorkHours: number;
-  tasks: { total: number; completed: number };
 }
 
+const monthNames = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const dateKey = (y: number, m: number, d: number) =>
+  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 7));
-  const [selectedDate, setSelectedDate] = useState<number | null>(23);
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(new Date(today.getFullYear(), today.getMonth()));
+  const [selectedDate, setSelectedDate] = useState<number>(today.getDate());
+  const [records, setRecords] = useState<Record<string, DayRecord>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-
-  const daysInMonth = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth() + 1,
-    0
-  ).getDate();
-
-  const firstDayOfMonth = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth(),
-    1
-  ).getDay();
-
-  const generateMockData = (day: number): DayRecord => {
-    const scores = [82, 75, 88, 70, 78, 65, 55, 80, 72, 85, 68, 74, 90, 60];
-    return {
-      date: day,
-      disciplineScore: scores[day % scores.length],
-      prayers: day % 7 === 0 ? 3 : 5,
-      quran: day % 5 !== 0,
-      darood: day % 7 === 0 ? 11 : 33,
-      walking: day % 4 !== 0,
-      workout: day % 3 !== 0,
-      meals: day % 6 === 0 ? 2 : 4,
-      deepWorkHours: day % 7 === 0 ? 4 : 8,
-      tasks: { total: 8, completed: day % 7 === 0 ? 3 : 7 },
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch("/api/history?days=120");
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        if (!res.ok) {
+          setError("Could not load calendar records.");
+          return;
+        }
+        const json = await res.json();
+        const map: Record<string, DayRecord> = {};
+        for (const r of json.history || []) {
+          map[r.date] = r;
+        }
+        setRecords(map);
+      } catch {
+        setError("Network error while loading calendar.");
+      } finally {
+        setLoading(false);
+      }
     };
-  };
+    load();
+  }, []);
 
-  const selectedRecord = selectedDate ? generateMockData(selectedDate) : null;
+  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+
+  const selectedRecord = selectedDate
+    ? records[dateKey(currentMonth.getFullYear(), currentMonth.getMonth(), selectedDate)]
+    : undefined;
 
   return (
     <AppShell>
@@ -69,6 +81,25 @@ export default function CalendarPage() {
           </p>
         </div>
 
+        {loading && (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <div className="animate-spin h-8 w-8 border-2 border-zinc-700 border-t-white rounded-full mx-auto mb-4" />
+              <p className="text-sm text-zinc-400">Loading calendar...</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && error && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <AlertCircle className="h-10 w-10 text-red-400/60 mx-auto mb-3" />
+              <p className="text-sm text-red-400">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && !error && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <Card>
@@ -120,16 +151,22 @@ export default function CalendarPage() {
                   ))}
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
-                    const record = generateMockData(day);
+                    const key = dateKey(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                    const record = records[key];
                     const isSelected = selectedDate === day;
-                    const isToday = day === 23;
+                    const isToday =
+                      day === today.getDate() &&
+                      currentMonth.getMonth() === today.getMonth() &&
+                      currentMonth.getFullYear() === today.getFullYear();
 
                     const scoreColor =
-                      record.disciplineScore >= 80
+                      record && record.disciplineScore >= 80
                         ? "text-emerald-400"
-                        : record.disciplineScore >= 60
+                        : record && record.disciplineScore >= 60
                         ? "text-yellow-400"
-                        : "text-red-400";
+                        : record
+                        ? "text-red-400"
+                        : "text-zinc-700";
 
                     return (
                       <button
@@ -151,7 +188,7 @@ export default function CalendarPage() {
                           {day}
                         </span>
                         <div className={`text-[10px] mt-0.5 ${scoreColor}`}>
-                          {record.disciplineScore}%
+                          {record ? `${record.disciplineScore}%` : "·"}
                         </div>
                       </button>
                     );
@@ -161,84 +198,72 @@ export default function CalendarPage() {
             </Card>
           </div>
 
-          {selectedRecord && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  August {selectedRecord.date}, 2026
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Discipline Score</span>
-                    <Badge variant="secondary">{selectedRecord.disciplineScore}%</Badge>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                {monthNames[currentMonth.getMonth()]} {selectedDate}, {currentMonth.getFullYear()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedRecord ? (
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-400">Discipline Score</span>
+                      <Badge variant="secondary">{selectedRecord.disciplineScore ?? 0}%</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-400">Prayers</span>
+                      <span className="text-sm text-white">
+                        {selectedRecord.prayers}/5
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-400">Quran</span>
+                      {selectedRecord.quran ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-red-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-400">Darood</span>
+                      <span className="text-sm text-white">
+                        {selectedRecord.darood}/33
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-400">Walking</span>
+                      {selectedRecord.walking ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-red-400" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-zinc-400">Learning</span>
+                      <span className="text-sm text-white">
+                        {selectedRecord.deepWorkHours}h
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Prayers</span>
-                    <span className="text-sm text-white">
-                      {selectedRecord.prayers}/5
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Quran</span>
-                    {selectedRecord.quran ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-red-400" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Darood</span>
-                    <span className="text-sm text-white">
-                      {selectedRecord.darood}/33
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Walking</span>
-                    {selectedRecord.walking ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-red-400" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Workout</span>
-                    {selectedRecord.workout ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-red-400" />
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Meals</span>
-                    <span className="text-sm text-white">
-                      {selectedRecord.meals}/4
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Deep Work</span>
-                    <span className="text-sm text-white">
-                      {selectedRecord.deepWorkHours}h
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-400">Tasks</span>
-                    <span className="text-sm text-white">
-                      {selectedRecord.tasks.completed}/{selectedRecord.tasks.total}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="pt-3 border-t border-zinc-800">
-                  <Button variant="outline" size="sm" className="w-full">
-                    View Full Day
-                  </Button>
+                  <div className="pt-3 border-t border-zinc-800">
+                    <Button variant="outline" size="sm" className="w-full">
+                      View Full Day
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="py-10 text-center">
+                  <CalendarIcon className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
+                  <p className="text-sm text-zinc-500">No data recorded for this date.</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
         </div>
+        )}
       </div>
     </AppShell>
   );

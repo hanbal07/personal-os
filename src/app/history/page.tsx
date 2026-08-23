@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { History, Calendar, Search, ArrowRight, CheckCircle2, AlertCircle, Clock } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface DayHistory {
   date: string;
@@ -23,19 +23,61 @@ interface DayHistory {
   notes: string;
 }
 
-const mockHistory: DayHistory[] = [
-  { date: "2026-08-23", day: "Sunday", disciplineScore: 65, tasksCompleted: 5, tasksTotal: 8, prayers: 4, quran: false, darood: 11, walking: true, workout: false, deepWorkHours: 5, notes: "Light day" },
-  { date: "2026-08-22", day: "Saturday", disciplineScore: 72, tasksCompleted: 6, tasksTotal: 8, prayers: 5, quran: true, darood: 33, walking: true, workout: true, deepWorkHours: 7, notes: "" },
-  { date: "2026-08-21", day: "Friday", disciplineScore: 78, tasksCompleted: 7, tasksTotal: 8, prayers: 5, quran: true, darood: 33, walking: true, workout: true, deepWorkHours: 8, notes: "" },
-  { date: "2026-08-20", day: "Thursday", disciplineScore: 70, tasksCompleted: 5, tasksTotal: 8, prayers: 5, quran: true, darood: 22, walking: true, workout: false, deepWorkHours: 6, notes: "Tired today" },
-  { date: "2026-08-19", day: "Wednesday", disciplineScore: 88, tasksCompleted: 8, tasksTotal: 8, prayers: 5, quran: true, darood: 33, walking: true, workout: true, deepWorkHours: 9, notes: "Great day!" },
-  { date: "2026-08-18", day: "Tuesday", disciplineScore: 75, tasksCompleted: 6, tasksTotal: 8, prayers: 5, quran: true, darood: 33, walking: true, workout: true, deepWorkHours: 7, notes: "" },
-  { date: "2026-08-17", day: "Monday", disciplineScore: 82, tasksCompleted: 7, tasksTotal: 8, prayers: 5, quran: true, darood: 33, walking: true, workout: true, deepWorkHours: 8.5, notes: "" },
-];
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function HistoryPage() {
   const [searchDate, setSearchDate] = useState("");
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [history, setHistory] = useState<DayHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadHistory = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/history?days=30");
+      if (res.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      if (!res.ok) {
+        setError("Could not load your history. Please try again.");
+        return;
+      }
+      const json = await res.json();
+      const rows: DayHistory[] = (json.history || []).map((r: Record<string, unknown>) => {
+        const d = new Date(`${r.date}T12:00:00`);
+        return {
+          date: r.date as string,
+          day: DAY_NAMES[d.getDay()],
+          disciplineScore: typeof r.disciplineScore === "number" ? r.disciplineScore : 0,
+          tasksCompleted: typeof r.prayersCompleted === "number" ? (r.prayersCompleted as number) : 0,
+          tasksTotal: 5,
+          prayers: typeof r.prayersCompleted === "number" ? (r.prayersCompleted as number) : 0,
+          quran: Boolean(r.quran),
+          darood: typeof r.daroodCount === "number" ? (r.daroodCount as number) : 0,
+          walking: Boolean(r.walking),
+          workout: ((r.exerciseMins as number) || 0) > 0,
+          deepWorkHours: Math.round((((r.learningMins as number) || 0) / 60) * 10) / 10,
+          notes: (r.notes as string) || "",
+        };
+      });
+      setHistory(rows);
+    } catch {
+      setError("Network error while loading history.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  const visibleDays = searchDate
+    ? history.filter((d) => d.date === searchDate)
+    : history;
 
   return (
     <AppShell>
@@ -61,8 +103,43 @@ export default function HistoryPage() {
           </div>
         </div>
 
+        {loading && (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <div className="animate-spin h-8 w-8 border-2 border-zinc-700 border-t-white rounded-full mx-auto mb-4" />
+              <p className="text-sm text-zinc-400">Loading your history...</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && error && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <AlertCircle className="h-10 w-10 text-red-400/60 mx-auto mb-3" />
+              <p className="text-sm text-red-400">{error}</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={loadHistory}>
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {!loading && !error && visibleDays.length === 0 && (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <History className="h-12 w-12 text-zinc-700 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-zinc-400">
+                {searchDate ? "No records found for this date" : "No history yet"}
+              </h3>
+              <p className="text-sm text-zinc-600 mt-2 max-w-md mx-auto">
+                Start your first day to build your progress history.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="space-y-3">
-          {mockHistory.map((day) => (
+          {visibleDays.map((day) => (
             <Card
               key={day.date}
               className={`cursor-pointer transition-all ${

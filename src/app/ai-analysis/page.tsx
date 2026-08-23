@@ -24,41 +24,33 @@ interface Analysis {
 export default function AIAnalysisPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [needsMoreData, setNeedsMoreData] = useState(false);
+  const [error, setError] = useState("");
 
-  const generateAnalysis = async () => {
+  const generateAnalysis = async (period: "week" | "month" = "week") => {
     setLoading(true);
-    setTimeout(() => {
-      setAnalysis({
-        summary: {
-          disciplineScore: 73,
-          learningHours: 49.1,
-          tasksCompleted: 34,
-          tasksMissed: 12,
-        },
-        strengths: [
-          "Morning routine consistency is strong at 85%",
-          "Prayer completion rate improved to 90%",
-          "Walking habit maintained 6 out of 7 days",
-        ],
-        weaknesses: [
-          "Evening learning sessions missed 5 times this week",
-          "Workout skipped on 2 consecutive days",
-          "Phone distraction peaked during afternoon hours",
-        ],
-        patterns: [
-          "Your completion rate drops significantly after 3 PM",
-          "Weekend discipline is 25% lower than weekdays",
-          "Tasks assigned to morning have 2x higher completion rate",
-        ],
-        recommendations: [
-          "Move difficult learning tasks to morning (before noon)",
-          "Set phone to Do Not Disturb from 2-5 PM",
-          "Schedule workouts right after Fajr when energy is highest",
-          "Consider lighter schedule on weekends to maintain consistency",
-        ],
+    setError("");
+    setNeedsMoreData(false);
+    try {
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ period }),
       });
+      const json = await res.json();
+      if (res.status === 400 && json.needsMoreData) {
+        setNeedsMoreData(true);
+        setAnalysis(null);
+      } else if (!res.ok) {
+        setError(json.error || "Failed to generate analysis. Please try again.");
+      } else if (json.analysis) {
+        setAnalysis(json.analysis);
+      }
+    } catch {
+      setError("Network error. Please check your connection and try again.");
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -71,13 +63,35 @@ export default function AIAnalysisPage() {
               Analyze your patterns and get actionable recommendations
             </p>
           </div>
-          <Button onClick={generateAnalysis} disabled={loading}>
+          <Button onClick={() => generateAnalysis("week")} disabled={loading}>
             <Brain className="h-4 w-4 mr-2" />
             {loading ? "Analyzing..." : "Generate Analysis"}
           </Button>
         </div>
 
-        {!analysis && !loading && (
+        {!analysis && !loading && needsMoreData && (
+          <Card>
+            <CardContent className="py-16 text-center">
+              <Clock className="h-12 w-12 text-zinc-700 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-zinc-400">Not enough data yet</h3>
+              <p className="text-sm text-zinc-600 mt-2 max-w-md mx-auto">
+                Not enough data yet. Continue tracking for several days before
+                generating meaningful analysis.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!analysis && !loading && !needsMoreData && error && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <AlertTriangle className="h-10 w-10 text-red-400/60 mx-auto mb-3" />
+              <p className="text-sm text-red-400">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!analysis && !loading && !needsMoreData && !error && (
           <Card>
             <CardContent className="py-16 text-center">
               <Brain className="h-12 w-12 text-zinc-700 mx-auto mb-4" />

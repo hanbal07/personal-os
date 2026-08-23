@@ -10,6 +10,7 @@ import {
   Clock,
   Sun,
   Moon,
+  Sparkles,
   BookOpen,
   Dumbbell,
   Footprints,
@@ -437,6 +438,11 @@ export default function DashboardPage() {
   }
 
   const settings = data.settings;
+  const isNewUser =
+    data.summary.streak === 0 &&
+    data.summary.tasksCompleted === 0 &&
+    data.learning.hours === 0 &&
+    data.prayers.completed === 0;
 
   return (
     <AppShell>
@@ -450,6 +456,20 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+
+        {isNewUser && (
+          <Card className="border-zinc-800 bg-zinc-900/50">
+            <CardContent className="flex items-start gap-3 p-4">
+              <Sparkles className="h-5 w-5 text-yellow-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm text-white font-medium">Welcome! Your journey starts today.</p>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Start your first day to build your progress history. Scores and streaks will appear here as you track real activity — they stay empty until then, so nothing is misleading.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <DisciplineWidget summary={data.summary} streak={data.summary.streak} />
