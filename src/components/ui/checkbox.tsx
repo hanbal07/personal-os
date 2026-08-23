@@ -14,7 +14,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         <div className="relative">
           <input
             type="checkbox"
-            className="sr-only"
+            className="peer sr-only"
             ref={ref}
             checked={checked}
             onChange={onChange}
@@ -24,8 +24,9 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             className={cn(
               "h-5 w-5 rounded-md border-2 transition-all duration-200",
               checked
-                ? "bg-white border-white"
+                ? "border-white bg-white"
                 : "border-zinc-600 group-hover:border-zinc-400",
+              "peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-300 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-zinc-950",
               className
             )}
           >

@@ -62,10 +62,11 @@ Check "projects list" ($null -ne $pj.projects) ""
 
 $sk = Api "/api/skills" | ConvertFrom-Json
 Check "skills list non-empty" ($sk.skills.Count -gt 0) ""
-$firstId = ($sk.skills | Where-Object { $_.name -like "*Python*" } | Select-Object -First 1).id
-if (-not $firstId) { $firstId = $sk.skills[0].id }
-$st = Api "/api/skills/$firstId/topics" | ConvertFrom-Json
-Check "skill topics endpoint" ($null -ne $st.topics -and $st.topics.Count -gt 0) "topics=$($st.topics.Count) skillId=$firstId"
+$py = $sk.skills | Where-Object { $_.name -like "*Python*" } | Select-Object -First 1
+if (-not $py) { $py = $sk.skills[0] }
+Check "skill embeds topics (read path)" ($null -ne $py.topics -and $py.topics.Count -gt 0) "topics=$($py.topics.Count)"
+$badSt = & $curl -s -o NUL -w "%{http_code}" -b $jar -X PATCH -H "Content-Type: application/json" -d (@{ topicId = "x"; status = "BOGUS" } | ConvertTo-Json -Compress) "$base/api/skills/$($py.id)/topics"
+Check "topics PATCH rejects bogus status (400)" ($badSt -eq "400") "got $badSt"
 
 $a7 = Api "/api/analytics?days=7" | ConvertFrom-Json
 $a30 = Api "/api/analytics?days=30" | ConvertFrom-Json
@@ -95,12 +96,15 @@ $badRange = & $curl -s -o NUL -w "%{http_code}" -b $jar "$base/api/history?days=
 Check "history clamps huge range (200)" ($badRange -eq "200") "got $badRange"
 
 # ── write-path smoke (roundtrip, net zero change) ────────────────────
-$cur = Api "/api/darood"
+$cur = Api "/api/darood" | ConvertFrom-Json
 $before = $cur.record.count
-$esc = (@{ increment = -1 } | ConvertTo-Json -Compress) -replace '"', '\"'
-$inc = (& $curl -s -b $jar -X POST "$base/api/darood") | ConvertFrom-Json
-$dec = (& $curl -s -b $jar -X POST -H "Content-Type: application/json" -d $esc "$base/api/darood") | ConvertFrom-Json
-Check "darood inc/dec roundtrip preserves count" (($inc.record.count -eq $before + 1) -and ($dec.record.count -eq $before)) "before=$before inc=$($inc.record.count) dec=$($dec.record.count)"
+$incBody = (@{ increment = 1 } | ConvertTo-Json -Compress) -replace '"', '\"'
+$decBody = (@{ increment = -1 } | ConvertTo-Json -Compress) -replace '"', '\"'
+$inc = (& $curl -s -b $jar -X POST -H "Content-Type: application/json" -d $incBody "$base/api/darood") | ConvertFrom-Json
+$dec = (& $curl -s -b $jar -X POST -H "Content-Type: application/json" -d $decBody "$base/api/darood") | ConvertFrom-Json
+$after = (Api "/api/darood" | ConvertFrom-Json).record.count
+Check "darood +1/-1 roundtrip preserves count" (($inc.record.count -eq $before + 1) -and ($dec.record.count -eq $before) -and ($after -eq $before)) "before=$before inc=$($inc.record.count) dec=$($dec.record.count) after=$after"
+Check "darood status still COMPLETED at 66" ((Api "/api/darood" | ConvertFrom-Json).record.status -eq "COMPLETED") ""
 
 $results
 $failCount = ($results | Where-Object { $_ -like "FAIL*" }).Count

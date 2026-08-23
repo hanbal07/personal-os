@@ -179,11 +179,13 @@ export default function HealthPage() {
 
   const mealField = (mealType: string, label: string, placeholder: string) => (
     <div className="space-y-2">
-      <label className="text-xs text-zinc-500 uppercase tracking-wider">{label}</label>
+      <label htmlFor={`meal-${mealType.toLowerCase()}`} className="text-xs text-zinc-500 uppercase tracking-wider">{label}</label>
       <Input
+        id={`meal-${mealType.toLowerCase()}`}
         value={meals[mealType] || ""}
         onChange={(e) => setMeals({ ...meals, [mealType]: e.target.value })}
         onBlur={() => saveMeal(mealType)}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
         placeholder={placeholder}
       />
     </div>
@@ -219,7 +221,17 @@ export default function HealthPage() {
         )}
 
         {loading ? (
-          <Card><CardContent className="p-6 text-sm text-zinc-500">Loading today&apos;s data…</CardContent></Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardContent className="space-y-3 p-5">
+                  <div className="h-10 w-10 animate-pulse rounded-lg bg-zinc-800" />
+                  <div className="h-5 w-24 animate-pulse rounded bg-zinc-800/70" />
+                  <div className="h-2 w-full animate-pulse rounded-full bg-zinc-800/70" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -298,6 +310,7 @@ export default function HealthPage() {
                       value={sleepHours}
                       onChange={(e) => setSleepHours(e.target.value)}
                       placeholder="Hours"
+                      aria-label="Hours of sleep"
                       className="w-24"
                     />
                     <Select
@@ -311,6 +324,7 @@ export default function HealthPage() {
                       ]}
                       value={sleepQuality}
                       onChange={(e) => setSleepQuality(e.target.value)}
+                      aria-label="Sleep quality"
                     />
                   </div>
                   <Button variant="outline" size="sm" className="mt-2" onClick={saveSleep}>Save Sleep</Button>
@@ -324,7 +338,7 @@ export default function HealthPage() {
                   <CardTitle className="text-base flex items-center gap-2">
                     <Utensils className="h-4 w-4 text-zinc-500" />
                     Today&apos;s Meals
-                    <span className="text-xs font-normal text-zinc-600">(saves on blur)</span>
+                    <span className="text-xs font-normal text-zinc-600">(auto-saves when you leave a field)</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">

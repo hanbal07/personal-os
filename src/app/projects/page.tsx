@@ -244,6 +244,7 @@ export default function ProjectsPage() {
                       variant="ghost"
                       size="sm"
                       className="text-red-400 hover:text-red-300"
+                      aria-label={`Delete project ${project.title}`}
                       onClick={() => remove(project)}
                       disabled={busyId === project.id}
                     >

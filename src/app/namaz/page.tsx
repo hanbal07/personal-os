@@ -127,9 +127,11 @@ export default function NamazPage() {
     if (!current || saving) return;
     const next =
       current.status === "COMPLETED"
+        ? "PARTIAL"
+        : current.status === "PARTIAL"
         ? "MISSED"
         : current.status === "MISSED"
-        ? "PARTIAL"
+        ? "COMPLETED"
         : "COMPLETED";
 
     setSaving(name);
@@ -216,7 +218,14 @@ export default function NamazPage() {
               <>
                 {PRAYER_NAMES.map((n) => (
                   <Card key={n}>
-                    <CardContent className="p-4 text-sm text-zinc-600">{n}…</CardContent>
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div className="h-5 w-5 animate-pulse rounded-full bg-zinc-800" />
+                      <div className="space-y-2">
+                        <div className="h-4 w-20 animate-pulse rounded bg-zinc-800" />
+                        <div className="h-3 w-14 animate-pulse rounded bg-zinc-800/70" />
+                      </div>
+                      <div className="ml-auto h-9 w-32 animate-pulse rounded-md bg-zinc-800/70" />
+                    </CardContent>
                   </Card>
                 ))}
               </>
@@ -256,11 +265,11 @@ export default function NamazPage() {
                         {saving === prayer.name
                           ? "Saving…"
                           : prayer.status === "COMPLETED"
-                          ? "Completed ✓"
+                          ? "Done ✓ (tap: Partial)"
                           : prayer.status === "MISSED"
-                          ? "Missed — mark partial"
+                          ? "Missed — mark complete"
                           : prayer.status === "PARTIAL"
-                          ? "Partial — mark complete"
+                          ? "Partial — tap for Missed"
                           : "Mark Complete"}
                       </Button>
                     </div>
@@ -280,16 +289,16 @@ export default function NamazPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Location</label>
-                  <Input value={location} onChange={(e) => setLocation(e.target.value)} />
+                  <label htmlFor="namaz-location" className="text-xs text-zinc-500 uppercase tracking-wider">Location</label>
+                  <Input id="namaz-location" value={location} onChange={(e) => setLocation(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Calculation Method</label>
-                  <Select options={calculationMethods} value={method} onChange={(e) => setMethod(e.target.value)} />
+                  <label htmlFor="namaz-method" className="text-xs text-zinc-500 uppercase tracking-wider">Calculation Method</label>
+                  <Select id="namaz-method" options={calculationMethods} value={method} onChange={(e) => setMethod(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">Juristic Method</label>
-                  <Select options={juristicMethods} value={madhab} onChange={(e) => setMadhab(e.target.value)} />
+                  <label htmlFor="namaz-madhab" className="text-xs text-zinc-500 uppercase tracking-wider">Juristic Method</label>
+                  <Select id="namaz-madhab" options={juristicMethods} value={madhab} onChange={(e) => setMadhab(e.target.value)} />
                 </div>
               </CardContent>
             </Card>

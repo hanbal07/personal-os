@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Clock, Sun, Moon, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { Clock, Sun, Moon, CheckCircle2, RefreshCw, StickyNote, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
 interface RoutineTask {
@@ -46,6 +46,30 @@ export default function RoutinePage() {
   const [wakeTime, setWakeTime] = useState("");
   const [notes, setNotes] = useState("");
   const [savedMsg, setSavedMsg] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const [nowMin, setNowMin] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => {
+      const d = new Date();
+      setNowMin(d.getHours() * 60 + d.getMinutes());
+    };
+    update();
+    const t = setInterval(update, 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const scheduleMinutes = suggestedSchedule.map(([time]) => {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+  });
+  const activeSlotIndex =
+    nowMin === null
+      ? -1
+      : suggestedSchedule.reduce(
+          (acc, _, i) => (scheduleMinutes[i] <= nowMin ? i : acc),
+          -1
+        );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -159,7 +183,7 @@ export default function RoutinePage() {
   const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
   const categories = Array.from(new Set(tasks.map((t) => t.category)));
-  const sectionIcons = [Sun, Clock, Moon, CheckCircle2, AlertCircle, RefreshCw];
+  const sectionIcons = [Sun, Clock, Moon, CheckCircle2, RefreshCw];
 
   const renderSection = (title: string, icon: React.ReactNode, items: RoutineTask[]) => (
     <Card>
@@ -178,34 +202,92 @@ export default function RoutinePage() {
         {items.length === 0 ? (
           <p className="text-sm text-zinc-600 py-2">No tasks in this group.</p>
         ) : (
-          items.map((task) => (
-            <div
-              key={task.id}
-              className="flex items-start gap-3 py-2 group rounded-lg hover:bg-zinc-800/30 px-2 -mx-2 transition-colors"
-            >
-              <div className="pt-0.5">
-                <Checkbox checked={task.completed} onChange={() => toggleTask(task.id)} disabled={savingId === task.id} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-sm ${task.completed ? "text-zinc-500 line-through" : "text-zinc-300"}`}>
-                    {task.label}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{task.category}</span>
+          items.map((task) => {
+            const noteOpen = expandedNotes.has(task.id);
+            return (
+              <div
+                key={task.id}
+                className="flex items-start gap-3 py-2.5 group rounded-lg hover:bg-zinc-800/30 px-2 -mx-2 transition-colors"
+              >
+                <div className="pt-0.5">
+                  <Checkbox checked={task.completed} onChange={() => toggleTask(task.id)} disabled={savingId === task.id} />
                 </div>
-                <Input
-                  value={task.notes}
-                  onChange={(e) => updateNotesLocal(task.id, e.target.value)}
-                  onBlur={() => commitNote(task.id)}
-                  placeholder="+ Add note"
-                  className="mt-1 h-7 text-xs bg-transparent border-transparent hover:border-zinc-700 focus:border-zinc-600 px-1"
-                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-sm ${task.completed ? "text-zinc-500 line-through" : "text-zinc-300"}`}>
+                      {task.label}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{task.category}</span>
+                  </div>
+                  {noteOpen ? (
+                    <div className="mt-1 flex items-center gap-1">
+                      <Input
+                        autoFocus
+                        value={task.notes}
+                        onChange={(e) => updateNotesLocal(task.id, e.target.value)}
+                        onBlur={() => {
+                          commitNote(task.id);
+                          setExpandedNotes((s) => {
+                            const next = new Set(s);
+                            next.delete(task.id);
+                            return next;
+                          });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") e.currentTarget.blur();
+                          if (e.key === "Escape") {
+                            updateNotesLocal(task.id, task.notes);
+                            setExpandedNotes((s) => {
+                              const next = new Set(s);
+                              next.delete(task.id);
+                              return next;
+                            });
+                          }
+                        }}
+                        placeholder="Add a note…"
+                        className="h-7 text-xs"
+                        aria-label={`Note for ${task.label}`}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Close note editor for ${task.label}`}
+                        onClick={() =>
+                          setExpandedNotes((s) => {
+                            const next = new Set(s);
+                            next.delete(task.id);
+                            return next;
+                          })
+                        }
+                        className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : task.notes ? (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedNotes((s) => new Set(s).add(task.id))}
+                      className="mt-0.5 flex max-w-full items-center gap-1 truncate text-left text-xs text-zinc-500 hover:text-zinc-300"
+                    >
+                      <StickyNote className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{task.notes}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedNotes((s) => new Set(s).add(task.id))}
+                      className="mt-0.5 text-xs text-zinc-600 hover:text-zinc-400"
+                    >
+                      + note
+                    </button>
+                  )}
+                </div>
+                {task.completed ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                ) : null}
               </div>
-              {task.completed ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-              ) : null}
-            </div>
-          ))
+            );
+          })
         )}
       </CardContent>
     </Card>
@@ -239,6 +321,60 @@ export default function RoutinePage() {
           <Card>
             <CardContent className="py-8 text-center text-sm text-zinc-500">
               No active disciplines configured yet. Add habits in Settings to build your daily routine.
+            </CardContent>
+          </Card>
+        )}
+
+        {tasks.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-zinc-500" />
+                  Today&apos;s Timeline
+                </CardTitle>
+                <span className="text-xs text-zinc-600">Suggested plan</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
+                {[
+                  suggestedSchedule.slice(0, Math.ceil(suggestedSchedule.length / 2)),
+                  suggestedSchedule.slice(Math.ceil(suggestedSchedule.length / 2)),
+                ].map((half, halfIdx) => (
+                  <ol key={halfIdx}>
+                    {half.map(([time, label]) => {
+                      const i = suggestedSchedule.findIndex((s) => s[0] === time);
+                      const isPast = nowMin !== null && scheduleMinutes[i] < nowMin && i !== activeSlotIndex;
+                      const isActive = i === activeSlotIndex;
+                      return (
+                        <li
+                          key={`${time}-${label}`}
+                          className={`flex min-h-[30px] items-center gap-3 rounded-md px-2 -mx-2 ${
+                            isActive ? "bg-white/5" : ""
+                          } ${isPast ? "opacity-45" : ""}`}
+                        >
+                          <span className="w-11 shrink-0 font-mono text-xs text-zinc-500">{time}</span>
+                          <span
+                            className={`h-2 w-2 shrink-0 rounded-full ${
+                              isActive ? "bg-white ring-4 ring-white/15" : "bg-zinc-700"
+                            }`}
+                            aria-hidden="true"
+                          />
+                          <span className={`text-sm ${isActive ? "font-medium text-white" : "text-zinc-400"}`}>
+                            {label}
+                          </span>
+                          {isActive && (
+                            <span className="ml-auto rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-950">
+                              NOW
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -288,25 +424,6 @@ export default function RoutinePage() {
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-zinc-500" />
-              Suggested Schedule (reference)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1.5">
-              {suggestedSchedule.map(([time, label]) => (
-                <div key={`${time}-${label}`} className="flex items-center gap-2 text-xs">
-                  <span className="text-zinc-600 font-mono">{time}</span>
-                  <span className="text-zinc-500">{label}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AppShell>
   );

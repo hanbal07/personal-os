@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { BookOpen, Feather, CheckCircle2, Circle } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -20,6 +20,10 @@ export default function QuranDaroodPage() {
   const [daroodTarget] = useState(33);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [week, setWeek] = useState<Array<{ date: string; label: string; quranDone: boolean; darood: number }> | null>(null);
+  const [quranDraft, setQuranDraft] = useState("0");
+  const [daroodDraft, setDaroodDraft] = useState("0");
+  const quranTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const daroodTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadWeek = useCallback(async () => {
     try {
@@ -62,6 +66,8 @@ export default function QuranDaroodPage() {
       const dData = await dRes.json();
       setQuranPages(qData.record?.pagesRead ?? 0);
       setDaroodCount(dData.record?.count ?? 0);
+      setQuranDraft(String(qData.record?.pagesRead ?? 0));
+      setDaroodDraft(String(dData.record?.count ?? 0));
       loadWeek();
     } catch {
       setError("Failed to load today's records. Please refresh.");
@@ -73,6 +79,30 @@ export default function QuranDaroodPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Debounced auto-save: fires ~800ms after the user stops typing,
+  // instead of a network request on every keystroke.
+  useEffect(() => {
+    if (loading) return;
+    const n = parseInt(quranDraft, 10);
+    if (Number.isNaN(n) || n === quranPages) return;
+    quranTimerRef.current = setTimeout(() => saveQuran(n), 800);
+    return () => {
+      if (quranTimerRef.current) clearTimeout(quranTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quranDraft, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    const n = parseInt(daroodDraft, 10);
+    if (Number.isNaN(n) || n === daroodCount) return;
+    daroodTimerRef.current = setTimeout(() => saveDarood(n), 800);
+    return () => {
+      if (daroodTimerRef.current) clearTimeout(daroodTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [daroodDraft, loading]);
 
   const saveQuran = async (nextPages: number) => {
     const clamped = Math.max(0, Math.min(604, nextPages));
@@ -90,6 +120,7 @@ export default function QuranDaroodPage() {
       loadWeek();
     } catch {
       setQuranPages(prev);
+      setQuranDraft(String(prev));
       setError("Could not save Quran reading. Try again.");
     } finally {
       setSavingKey(null);
@@ -112,9 +143,26 @@ export default function QuranDaroodPage() {
       loadWeek();
     } catch {
       setDaroodCount(prev);
+      setDaroodDraft(String(prev));
       setError("Could not save Darood count. Try again.");
     } finally {
       setSavingKey(null);
+    }
+  };
+
+  const commitQuranDraft = () => {
+    const n = parseInt(quranDraft, 10);
+    if (!Number.isNaN(n) && n !== quranPages) {
+      if (quranTimerRef.current) clearTimeout(quranTimerRef.current);
+      saveQuran(n);
+    }
+  };
+
+  const commitDaroodDraft = () => {
+    const n = parseInt(daroodDraft, 10);
+    if (!Number.isNaN(n) && n !== daroodCount) {
+      if (daroodTimerRef.current) clearTimeout(daroodTimerRef.current);
+      saveDarood(n);
     }
   };
 
@@ -136,7 +184,17 @@ export default function QuranDaroodPage() {
         )}
 
         {loading ? (
-          <Card><CardContent className="p-6 text-sm text-zinc-500">Loading…</CardContent></Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2].map((i) => (
+              <Card key={i}>
+                <CardContent className="space-y-4 p-6">
+                  <div className="h-5 w-36 animate-pulse rounded bg-zinc-800" />
+                  <div className="h-2 w-full animate-pulse rounded-full bg-zinc-800/70" />
+                  <div className="h-10 w-44 animate-pulse rounded-lg bg-zinc-800/70" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -154,16 +212,20 @@ export default function QuranDaroodPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Progress value={Math.min(100, quranProgress)} variant={quranProgress >= 100 ? "success" : "default"} />
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" disabled={quranPages === 0 || savingKey === "quran"} onClick={() => saveQuran(quranPages - 1)}>-1</Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" aria-label="Decrease pages by one" disabled={quranPages === 0 || savingKey === "quran"} onClick={() => { setQuranDraft(String(quranPages - 1)); saveQuran(quranPages - 1); }}>-1</Button>
                     <Input
                       type="number"
-                      value={quranPages}
-                      onChange={(e) => saveQuran(parseInt(e.target.value) || 0)}
-                      onBlur={() => saveQuran(quranPages)}
+                      inputMode="numeric"
+                      value={quranDraft}
+                      onChange={(e) => setQuranDraft(e.target.value)}
+                      onBlur={commitQuranDraft}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                       className="w-20 text-center"
+                      aria-label="Pages read today (saves automatically)"
                     />
-                    <Button variant="outline" size="sm" disabled={savingKey === "quran"} onClick={() => saveQuran(quranPages + 1)}>+1</Button>
+                    <Button variant="outline" size="sm" aria-label="Increase pages by one" disabled={savingKey === "quran"} onClick={() => { setQuranDraft(String(quranPages + 1)); saveQuran(quranPages + 1); }}>+1</Button>
+                    {savingKey === "quran" && <span className="text-xs text-zinc-500">Saving…</span>}
                   </div>
                   <div className="pt-2 border-t border-zinc-800">
                     <p className="text-xs text-zinc-500">Tip: Even reading 1 page daily maintains consistency.</p>
@@ -185,16 +247,39 @@ export default function QuranDaroodPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Progress value={Math.min(100, daroodProgress)} variant={daroodProgress >= 100 ? "success" : "default"} />
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" disabled={daroodCount === 0 || savingKey === "darood"} onClick={() => saveDarood(daroodCount - 1)}>-1</Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" aria-label="Decrease count by one" disabled={daroodCount === 0 || savingKey === "darood"} onClick={() => { setDaroodDraft(String(daroodCount - 1)); saveDarood(daroodCount - 1); }}>-1</Button>
                     <Input
                       type="number"
-                      value={daroodCount}
-                      onChange={(e) => saveDarood(parseInt(e.target.value) || 0)}
-                      onBlur={() => saveDarood(daroodCount)}
+                      inputMode="numeric"
+                      value={daroodDraft}
+                      onChange={(e) => setDaroodDraft(e.target.value)}
+                      onBlur={commitDaroodDraft}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                       className="w-20 text-center"
+                      aria-label="Darood count today (saves automatically)"
                     />
-                    <Button variant="outline" size="sm" disabled={savingKey === "darood"} onClick={() => saveDarood(daroodCount + 1)}>+1</Button>
+                    <Button variant="outline" size="sm" aria-label="Increase count by one" disabled={savingKey === "darood"} onClick={() => { setDaroodDraft(String(daroodCount + 1)); saveDarood(daroodCount + 1); }}>+1</Button>
+                    {savingKey === "darood" && <span className="text-xs text-zinc-500">Saving…</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[11, 33].map((n) => (
+                      <Button
+                        key={n}
+                        variant="secondary"
+                        size="sm"
+                        aria-label={`Add ${n} to Darood count`}
+                        disabled={savingKey === "darood"}
+                        onClick={() => {
+                          const next = daroodCount + n;
+                          setDaroodDraft(String(next));
+                          saveDarood(next);
+                        }}
+                      >
+                        +{n}
+                      </Button>
+                    ))}
+                    <span className="self-center text-xs text-zinc-600">one tasbeeh = +33</span>
                   </div>
                   <div className="pt-2 border-t border-zinc-800">
                     <p className="text-xs text-zinc-500">After Maghrib is the dedicated Darood time. Target: 33 daily.</p>
