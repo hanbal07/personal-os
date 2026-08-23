@@ -39,18 +39,29 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const body = await request.json();
-    const { title, description, skills, technologies, startDate, targetDate } = body;
+    let body: { title?: unknown; description?: unknown; skills?: unknown; technologies?: unknown; startDate?: unknown; targetDate?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    if (typeof body.title !== "string" || body.title.trim().length === 0) {
+      return NextResponse.json({ error: "title is required" }, { status: 400 });
+    }
+    if (body.description !== undefined && typeof body.description !== "string") {
+      return NextResponse.json({ error: "description must be a string" }, { status: 400 });
+    }
 
     const project = await db.project.create({
       data: {
         userId,
-        title,
-        description,
-        skills,
-        technologies,
-        startDate: startDate ? new Date(startDate) : null,
-        targetDate: targetDate ? new Date(targetDate) : null,
+        title: body.title.trim(),
+        description: typeof body.description === "string" ? body.description : null,
+        skills: typeof body.skills === "string" ? body.skills : null,
+        technologies: typeof body.technologies === "string" ? body.technologies : null,
+        startDate: body.startDate ? new Date(body.startDate as string) : null,
+        targetDate: body.targetDate ? new Date(body.targetDate as string) : null,
       },
     });
 
