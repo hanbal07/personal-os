@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         userId,
         skillId,
         date: new Date(`${date}T12:00:00`),
-        sessionType: (sessionType as string) ?? "LEARNING",
+        sessionType: (sessionType as "LEARNING") ?? "LEARNING",
         topic: typeof topic === "string" ? topic : null,
         durationMins: mins,
         notes: typeof notes === "string" ? notes : null,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     await db.skill.update({
       where: { id: skillId },
       data: {
-        practiceHours: { increment: durationMins / 60 },
+        practiceHours: { increment: mins / 60 },
         updatedAt: new Date(),
       },
     });
