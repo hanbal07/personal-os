@@ -114,19 +114,21 @@ function formatInZone(instant: Date, tz: string): string {
  * Solar events for the calendar day containing `date` (viewed in config.timezone),
  * returned as true UTC instants plus timezone-formatted strings.
  *
- * The adhan library reports times through the environment's local clock; we read
- * those wall-clock components and re-anchor them to the configured timezone so
- * results never depend on the server's own TZ setting.
+ * adhan reads the calendar day from the anchor's HOST-LOCAL date components and
+ * emits each event as a true instant whose epoch encodes the event time. To make
+ * results identical regardless of server timezone we feed it an anchor whose
+ * host-local wall clock is NOON of the target day (stable day selection for any
+ * host offset within ±11h) and then use its outputs verbatim — never re-reading
+ * their local fields.
  */
 function computeSolarEvents(date: Date, config: LocationConfig) {
   const tz = config.timezone || "UTC";
   const params = getCalculationMethod(config.method);
   params.madhab = getMadhab(config.madhab);
 
-  // Anchor to noon UTC of the target calendar day in the user's timezone so
-  // the date components are unambiguous even for early-morning requests.
   const target = zonedParts(tz, date);
-  const anchor = new Date(Date.UTC(target.y, target.m - 1, target.d, 12, 0, 0, 0));
+  const hostTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const anchor = wallClockToInstant(target.y, target.m, target.d, 12, 0, hostTz);
 
   const pt = new PrayerTimes(new Coordinates(config.latitude, config.longitude), anchor, params);
 
@@ -140,10 +142,7 @@ function computeSolarEvents(date: Date, config: LocationConfig) {
   };
 
   return EVENT_NAMES.map((name) => {
-    // adhan encodes the solar clock time in the environment-local fields.
-    const h = raw[name].getHours();
-    const min = raw[name].getMinutes();
-    const instant = wallClockToInstant(target.y, target.m - 1, target.d, h, min, tz);
+    const instant = raw[name];
     return { name, instant, formatted: formatInZone(instant, tz) };
   });
 }

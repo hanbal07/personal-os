@@ -46,7 +46,17 @@ $h = Api "/api/health" | ConvertFrom-Json
 Check "health returns object" ($null -ne $h.water -or $null -ne $h.meals -or $null -ne $h.sleep) ($h | ConvertTo-Json -Compress)
 
 $q = Api "/api/quran" | ConvertFrom-Json
-Check "quran record present" ($null -ne $q.record) ""
+# State-aware write roundtrip: log 5 pages, verify persistence, then restore prior state.
+$qBeforePages = if ($null -ne $q.record -and $null -ne $q.record.pagesRead) { $q.record.pagesRead } else { $null }
+$qBody = (@{ pagesRead = 5 } | ConvertTo-Json -Compress) -replace '"', '\"'
+$qPost = (& $curl -s -b $jar -X POST -H "Content-Type: application/json" -d $qBody "$base/api/quran") | ConvertFrom-Json
+Check "quran write persists (pagesRead=5)" ($null -ne $qPost.record -and $qPost.record.pagesRead -eq 5) "got $($qPost.record.pagesRead)"
+if ($null -eq $qBeforePages) {
+  $qRestore = (@{ pagesRead = 0 } | ConvertTo-Json -Compress) -replace '"', '\"'
+} else {
+  $qRestore = (@{ pagesRead = $qBeforePages } | ConvertTo-Json -Compress) -replace '"', '\"'
+}
+& $curl -s -o NUL -b $jar -X POST -H "Content-Type: application/json" -d $qRestore "$base/api/quran"
 
 $dr = Api "/api/darood" | ConvertFrom-Json
 Check "darood record.count present" ($null -ne $dr.record.count) ($dr | ConvertTo-Json -Compress)
@@ -98,13 +108,16 @@ Check "history clamps huge range (200)" ($badRange -eq "200") "got $badRange"
 # ── write-path smoke (roundtrip, net zero change) ────────────────────
 $cur = Api "/api/darood" | ConvertFrom-Json
 $before = $cur.record.count
+$beforeStatus = $cur.record.status
 $incBody = (@{ increment = 1 } | ConvertTo-Json -Compress) -replace '"', '\"'
 $decBody = (@{ increment = -1 } | ConvertTo-Json -Compress) -replace '"', '\"'
 $inc = (& $curl -s -b $jar -X POST -H "Content-Type: application/json" -d $incBody "$base/api/darood") | ConvertFrom-Json
 $dec = (& $curl -s -b $jar -X POST -H "Content-Type: application/json" -d $decBody "$base/api/darood") | ConvertFrom-Json
-$after = (Api "/api/darood" | ConvertFrom-Json).record.count
+$afterRec = Api "/api/darood" | ConvertFrom-Json
+$after = $afterRec.record.count
 Check "darood +1/-1 roundtrip preserves count" (($inc.record.count -eq $before + 1) -and ($dec.record.count -eq $before) -and ($after -eq $before)) "before=$before inc=$($inc.record.count) dec=$($dec.record.count) after=$after"
-Check "darood status still COMPLETED at 66" ((Api "/api/darood" | ConvertFrom-Json).record.status -eq "COMPLETED") ""
+# Status must be restored to whatever it was before the roundtrip (count-derived, so it follows automatically).
+Check "darood status preserved by roundtrip" ($afterRec.record.status -eq $beforeStatus) "before=$beforeStatus after=$($afterRec.record.status)"
 
 $results
 $failCount = ($results | Where-Object { $_ -like "FAIL*" }).Count
