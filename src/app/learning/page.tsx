@@ -15,43 +15,24 @@ import {
   Circle,
   Loader2,
   Target,
-  Sparkles,
+  ChevronDown,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
-
-interface Topic {
-  id: string;
-  title: string;
-  status: string;
-  phase?: string;
-  order?: number;
-  durationMins?: number | null;
-  description?: string | null;
-}
-
-interface Skill {
-  id: string;
-  name: string;
-  slug: string;
-  phase: string;
-  level: string;
-  progress: number;
-  topicsCompleted: number;
-  topicsTotal: number;
-  practiceHours: number;
-  lastStudied: string | null;
-  currentTopic: string;
-  nextTopic: string;
-  topics: Topic[];
-}
+import {
+  recommend,
+  PHASE_SEQUENCE,
+  type Skill,
+  type Topic,
+} from "@/lib/learning-recommend";
 
 const PHASE_META: Record<string, { label: string; blurb: string }> = {
-  FUNDAMENTALS: { label: "Beginner · Foundation", blurb: "Build unshakeable basics" },
-  INTERMEDIATE: { label: "Core Skills", blurb: "Real-world fluency" },
-  ADVANCED: { label: "Advanced Practice", blurb: "Depth and edge cases" },
+  FUNDAMENTALS: { label: "Foundation", blurb: "Build unshakeable basics" },
+  INTERMEDIATE: { label: "Core", blurb: "Real-world fluency" },
+  ADVANCED: { label: "Advanced", blurb: "Depth and edge cases" },
   MASTERY: { label: "Projects", blurb: "Prove it by building" },
 };
-const PHASE_SEQUENCE = ["FUNDAMENTALS", "INTERMEDIATE", "ADVANCED", "MASTERY"];
 
 const sessionTypes = [
   { value: "LEARNING", label: "Learning" },
@@ -72,20 +53,20 @@ export default function LearningPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openPhase, setOpenPhase] = useState<string | null>("FUNDAMENTALS");
   const [showSession, setShowSession] = useState(false);
   const [form, setForm] = useState({ skillId: "", sessionType: "LEARNING", durationMins: "60", topic: "" });
   const [logging, setLogging] = useState(false);
   const [logMsg, setLogMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setError(null);
     try {
       const res = await fetch("/api/skills");
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setSkills(data.skills || []);
-      setSelectedId((cur) => cur ?? data.skills?.[0]?.id ?? null);
-      setForm((f) => ({ ...f, skillId: f.skillId || data.skills?.[0]?.id || "" }));
+      const list: Skill[] = data.skills || [];
+      setSkills(list);
+      setError(null);
     } catch {
       setError("Couldn't load your learning roadmap. Please refresh.");
     } finally {
@@ -97,35 +78,32 @@ export default function LearningPage() {
     load();
   }, [load]);
 
-  const selected = skills.find((s) => s.id === selectedId) || skills[0] || null;
+  const rec = useMemo(() => recommend(skills), [skills]);
+  const selected = skills.find((s) => s.id === selectedId) ?? rec.focus?.skill ?? skills[0] ?? null;
 
-  // Current focus: in-progress topic first, else first not-started in sequence.
-  const focusTopic = useMemo(() => {
-    if (!selected) return null;
-    return (
-      selected.topics.find((t) => t.status === "IN_PROGRESS") ||
-      selected.topics.find((t) => t.status === "NOT_STARTED") ||
-      null
-    );
-  }, [selected]);
+  const selectSkill = (id: string) => {
+    setSelectedId(id);
+    const focusForSkill = rec.focus && rec.focus.skill.id === id ? rec.focus.topic.phase || "FUNDAMENTALS" : null;
+    setOpenPhase(focusForSkill ?? "FUNDAMENTALS");
+  };
 
   const grouped = useMemo(() => {
     if (!selected) return [];
     const groups = new Map<string, Topic[]>();
-    for (const t of selected.topics) {
+    for (const t of [...selected.topics].sort(
+      (a, b) =>
+        PHASE_SEQUENCE.indexOf(a.phase || "FUNDAMENTALS") -
+        PHASE_SEQUENCE.indexOf(b.phase || "FUNDAMENTALS") ||
+        (a.order ?? 0) - (b.order ?? 0)
+    )) {
       const key = t.phase && PHASE_META[t.phase] ? t.phase : "FUNDAMENTALS";
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(t);
     }
-    return PHASE_SEQUENCE.filter((p) => groups.has(p)).map((phase) => ({
-      phase,
-      topics: groups.get(phase)!,
-    }));
+    return PHASE_SEQUENCE.filter((p) => groups.has(p)).map((phase) => ({ phase, topics: groups.get(phase)! }));
   }, [selected]);
 
-  const cycleTopic = async (skillId: string, topic: Topic) => {
-    const order = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"];
-    const next = order[(order.indexOf(topic.status) + 1) % order.length];
+  const setStatus = async (skillId: string, topic: Topic, next: string) => {
     setError(null);
     try {
       const res = await fetch(`/api/skills/${skillId}/topics`, {
@@ -140,15 +118,41 @@ export default function LearningPage() {
             ? {
                 ...s,
                 topics: s.topics.map((t) => (t.id === topic.id ? { ...t, status: next } : t)),
-                topicsCompleted: s.topics.filter(
-                  (t) => (t.id === topic.id ? next : t.status) === "COMPLETED"
-                ).length,
+                topicsCompleted: s.topics.filter((t) => (t.id === topic.id ? next : t.status) === "COMPLETED").length,
               }
             : s
         )
       );
+      return true;
     } catch {
       setError("Couldn't update the topic. Try again.");
+      return false;
+    }
+  };
+
+  const cycleTopic = (skillId: string, topic: Topic) => {
+    const order = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"];
+    const next = order[(order.indexOf(topic.status) + 1) % order.length];
+    setStatus(skillId, topic, next);
+  };
+
+  const startSessionFor = async (skillId: string, topic: Topic | null) => {
+    if (topic && topic.status === "NOT_STARTED") await setStatus(skillId, topic, "IN_PROGRESS");
+    setForm((f) => ({
+      ...f,
+      skillId,
+      topic: topic?.title ?? "",
+      durationMins: String(topic?.durationMins && topic.durationMins > 0 ? Math.min(120, topic.durationMins) : 60),
+    }));
+    setShowSession(true);
+    document.getElementById("log-session-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+
+  const markDone = async (skillId: string, topic: Topic) => {
+    const ok = await setStatus(skillId, topic, "COMPLETED");
+    if (ok) {
+      setLogMsg(`“${topic.title}” completed ✓`);
+      setTimeout(() => setLogMsg(null), 2500);
     }
   };
 
@@ -169,7 +173,7 @@ export default function LearningPage() {
           skillId: form.skillId,
           sessionType: form.sessionType,
           durationMins: duration,
-          topic: form.topic.trim() || focusTopic?.title || null,
+          topic: form.topic.trim() || rec.focus?.topic.title || null,
         }),
       });
       if (!res.ok) throw new Error();
@@ -185,6 +189,8 @@ export default function LearningPage() {
     }
   };
 
+  const focus = rec.focus;
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -192,10 +198,10 @@ export default function LearningPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-ink">Learning</h1>
             <p className="mt-1 text-sm text-muted">
-              Six tracks · one roadmap each{logMsg ? <span className="ml-2 font-medium text-success">· {logMsg}</span> : null}
+              One focus at a time{logMsg ? <span className="ml-2 font-medium text-success">· {logMsg}</span> : null}
             </p>
           </div>
-          <Button onClick={() => setShowSession(!showSession)}>
+          <Button onClick={() => startSessionFor(focus?.skill.id ?? skills[0]?.id ?? "", focus?.topic ?? null)}>
             <BookOpen className="mr-2 h-4 w-4" />
             Log Session
           </Button>
@@ -208,15 +214,15 @@ export default function LearningPage() {
         )}
 
         {showSession && (
-          <Card>
+          <Card id="log-session-panel">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Log Learning Session</CardTitle>
+              <CardTitle className="text-base">Log learning session</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
               <Select
                 aria-label="Skill"
                 options={skills.map((s) => ({ value: s.id, label: s.name }))}
-                value={form.skillId}
+                value={form.skillId || skills[0]?.id || ""}
                 onChange={(e) => setForm({ ...form, skillId: e.target.value })}
               />
               <Select
@@ -235,10 +241,10 @@ export default function LearningPage() {
                 placeholder="Minutes"
               />
               <Input
-                aria-label="Topic (optional)"
+                aria-label="Topic"
                 value={form.topic}
                 onChange={(e) => setForm({ ...form, topic: e.target.value })}
-                placeholder={focusTopic ? `Defaults to "${focusTopic.title}"` : "Topic (optional)"}
+                placeholder="Topic"
               />
               <Button onClick={logSession} disabled={logging}>
                 {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Session"}
@@ -249,10 +255,10 @@ export default function LearningPage() {
 
         {loading ? (
           <div className="space-y-3">
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Skeleton key={i} className="h-28 rounded-xl" />
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-24 rounded-xl" />
               ))}
             </div>
             <Skeleton className="h-64 w-full rounded-xl" />
@@ -265,132 +271,226 @@ export default function LearningPage() {
           </Card>
         ) : (
           <>
-            {/* Track selector */}
-            <nav aria-label="Skill tracks" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {skills.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedId(s.id)}
-                  aria-current={selected?.id === s.id}
-                  className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                    selected?.id === s.id
-                      ? "border-accent bg-accent-tint text-accent-strong"
-                      : "border-line bg-surface text-muted hover:border-faint hover:text-ink"
-                  }`}
-                >
-                  {s.name}
-                  <span className="ml-2 text-xs opacity-70">{s.progress}%</span>
-                </button>
-              ))}
-            </nav>
-
-            {selected && (
-              <>
-                {/* Overview card */}
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <h2 className="text-lg font-bold text-ink">{selected.name}</h2>
-                        <p className="mt-0.5 text-sm text-muted">
-                          {selected.topicsCompleted}/{selected.topicsTotal} topics · {selected.practiceHours}h practice (30d)
-                          {selected.lastStudied ? ` · last studied ${selected.lastStudied}` : ""}
+            {/* ── CURRENT FOCUS ── */}
+            <section aria-labelledby="focus-heading">
+              <Card className="border-accent/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base" id="focus-heading">
+                    <Target className="h-4 w-4 text-accent" aria-hidden="true" />
+                    Current focus
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!focus ? (
+                    <p className="text-sm text-muted">All topics complete — outstanding. Time to build something of your own.</p>
+                  ) : (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-faint">{focus.skill.name}</p>
+                        <p className="mt-1 truncate text-lg font-semibold text-ink">{focus.topic.title}</p>
+                        {focus.topic.description && (
+                          <p className="mt-0.5 line-clamp-2 text-sm text-muted">{focus.topic.description}</p>
+                        )}
+                        <p className="mt-1 flex items-center gap-2 text-xs text-faint">
+                          {focus.topic.durationMins != null && focus.topic.durationMins > 0 && (
+                            <>
+                              <Clock className="h-3 w-3" /> ~{focus.topic.durationMins}m
+                            </>
+                          )}
+                          {focus.skill.lastStudied && <span>· last studied {focus.skill.lastStudied}</span>}
                         </p>
                       </div>
-                      <Badge variant={selected.progress >= 100 ? "success" : "accent"} className="text-sm">
-                        {selected.progress}% complete
-                      </Badge>
-                    </div>
-                    <Progress value={selected.progress} variant={selected.progress >= 100 ? "success" : "default"} className="mt-3" />
-                    {focusTopic && (
-                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-surface2 p-4">
-                        <Target className="h-5 w-5 shrink-0 text-accent" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-muted">Current Focus</p>
-                          <p className="mt-0.5 truncate font-medium text-ink">{focusTopic.title}</p>
-                          {focusTopic.description && (
-                            <p className="truncate text-xs text-faint">{focusTopic.description}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => cycleTopic(selected.id, focusTopic)}>
-                            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                            {focusTopic.status === "NOT_STARTED" ? "Start" : "Mark Done"}
+                      <div className="flex shrink-0 gap-2">
+                        <Button size="sm" onClick={() => startSessionFor(focus.skill.id, focus.topic)}>
+                          <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                          Start session
+                        </Button>
+                        {focus.topic.status !== "COMPLETED" && (
+                          <Button size="sm" variant="outline" onClick={() => markDone(focus.skill.id, focus.topic)}>
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                            Done
                           </Button>
-                        </div>
+                        )}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* ── NEXT UP (max 3) ── */}
+            {rec.nextUp.length > 0 && (
+              <section aria-labelledby="nextup-heading">
+                <h2 id="nextup-heading" className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-faint">
+                  Next up
+                </h2>
+                <Card>
+                  <CardContent className="p-0">
+                    <ul className="divide-y divide-line">
+                      {rec.nextUp.map(({ skill, topic }) => (
+                        <li key={topic.id} className="flex items-center gap-3 px-4 py-3">
+                          <span className="pt-0.5">{statusIcon(topic.status)}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-ink">{topic.title}</p>
+                            <p className="truncate text-xs text-faint">
+                              {skill.name}
+                              {topic.durationMins ? ` · ~${topic.durationMins}m` : ""}
+                            </p>
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => startSessionFor(skill.id, topic)}>
+                            Start <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
                   </CardContent>
                 </Card>
+              </section>
+            )}
 
-                {/* Phase-grouped roadmap */}
-                <div className="space-y-5">
+            {/* ── SKILLS GRID ── */}
+            <section aria-labelledby="skills-heading">
+              <h2 id="skills-heading" className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-faint">
+                Skills
+              </h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {skills.map((s) => {
+                  const unlocked = rec.unlockedBySkill[s.id];
+                  const current = rec.currentBySkill[s.id];
+                  const blockedBy = rec.blockedBySkill[s.id];
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => selectSkill(s.id)}
+                      aria-current={selected?.id === s.id}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        selected?.id === s.id ? "border-accent/50 bg-accent-tint/40" : "border-line bg-surface hover:border-faint"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="truncate text-sm font-semibold text-ink">{s.name}</h3>
+                        <Badge variant={s.progress >= 100 ? "success" : unlocked ? "accent" : "secondary"}>{s.progress}%</Badge>
+                      </div>
+                      <Progress value={s.progress} variant={s.progress >= 100 ? "success" : "default"} className="mt-2.5" />
+                      <p className="mt-2 truncate text-xs text-muted">
+                        {!unlocked ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> Finish {blockedBy} first
+                          </span>
+                        ) : current ? (
+                          <>
+                            Now: {current.title}
+                          </>
+                        ) : (
+                          "Complete"
+                        )}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* ── ROADMAP (one skill at a time, collapsible phases) ── */}
+            {selected && (
+              <section aria-labelledby="roadmap-heading">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+                  <h2 id="roadmap-heading" className="text-[11px] font-semibold uppercase tracking-[0.16em] text-faint">
+                    Roadmap
+                  </h2>
+                  <nav aria-label="Choose skill roadmap" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                    {skills.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => selectSkill(s.id)}
+                        aria-current={selected.id === s.id}
+                        className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          selected.id === s.id
+                            ? "border-accent bg-accent-tint text-accent-strong"
+                            : "border-line bg-surface text-muted hover:border-faint hover:text-ink"
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                <div className="space-y-3">
                   {grouped.map(({ phase, topics }) => {
                     const meta = PHASE_META[phase];
                     const doneCount = topics.filter((t) => t.status === "COMPLETED").length;
+                    const isOpen = openPhase === phase;
                     return (
                       <Card key={phase}>
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle className="text-base">{meta.label}</CardTitle>
-                              <p className="text-xs text-faint">{meta.blurb}</p>
-                            </div>
+                        <button
+                          onClick={() => setOpenPhase(isOpen ? null : phase)}
+                          aria-expanded={isOpen}
+                          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                        >
+                          <span>
+                            <span className="block text-sm font-semibold text-ink">{meta.label}</span>
+                            <span className="block text-xs text-faint">{meta.blurb}</span>
+                          </span>
+                          <span className="flex items-center gap-3">
                             <Badge variant={doneCount === topics.length ? "success" : "secondary"}>
                               {doneCount}/{topics.length}
                             </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-1">
-                          <ul className="divide-y divide-line">
-                            {topics.map((topic) => (
-                              <li key={topic.id}>
-                                <button
-                                  onClick={() => cycleTopic(selected.id, topic)}
-                                  title={
-                                    topic.status === "NOT_STARTED"
-                                      ? "Click to start this topic"
-                                      : topic.status === "IN_PROGRESS"
-                                      ? "Click to mark complete"
-                                      : "Click to reset status"
-                                  }
-                                  className="flex w-full items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-surface2"
-                                >
-                                  <span className="pt-0.5">{statusIcon(topic.status)}</span>
-                                  <span className="min-w-0 flex-1">
-                                    <span
-                                      className={`block text-sm ${
-                                        topic.status === "COMPLETED"
-                                          ? "text-faint line-through"
-                                          : topic.status === "IN_PROGRESS"
-                                          ? "font-semibold text-ink"
-                                          : "text-ink"
-                                      }`}
-                                    >
-                                      {topic.title}
+                            <ChevronDown className={`h-4 w-4 text-faint transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <CardContent className="border-t border-line pt-1">
+                            <ul className="divide-y divide-line">
+                              {topics.map((topic) => (
+                                <li key={topic.id}>
+                                  <button
+                                    onClick={() => cycleTopic(selected.id, topic)}
+                                    title={
+                                      topic.status === "NOT_STARTED"
+                                        ? "Click to start this topic"
+                                        : topic.status === "IN_PROGRESS"
+                                        ? "Click to mark complete"
+                                        : "Click to reset status"
+                                    }
+                                    className="flex w-full items-start gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-surface2"
+                                  >
+                                    <span className="pt-0.5">{statusIcon(topic.status)}</span>
+                                    <span className="min-w-0 flex-1">
+                                      <span
+                                        className={`block text-sm ${
+                                          topic.status === "COMPLETED"
+                                            ? "text-faint line-through"
+                                            : topic.status === "IN_PROGRESS"
+                                            ? "font-semibold text-ink"
+                                            : "text-ink"
+                                        }`}
+                                      >
+                                        {topic.title}
+                                      </span>
+                                      {topic.description && (
+                                        <span className="block truncate text-xs text-faint">{topic.description}</span>
+                                      )}
                                     </span>
-                                    {topic.description && (
-                                      <span className="block truncate text-xs text-faint">{topic.description}</span>
+                                    {topic.durationMins != null && (
+                                      <span className="shrink-0 pt-0.5 font-mono text-[11px] tabular-nums text-faint">
+                                        {topic.durationMins}m
+                                      </span>
                                     )}
-                                  </span>
-                                  {topic.durationMins != null && (
-                                    <span className="shrink-0 pt-0.5 font-mono text-[11px] tabular-nums text-faint">
-                                      {topic.durationMins}m
-                                    </span>
-                                  )}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </CardContent>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </CardContent>
+                        )}
                       </Card>
                     );
                   })}
                 </div>
-                <p className="px-1 text-xs leading-relaxed text-faint">
-                  Tap any topic to move it Not Started → In Progress → Completed. Nothing is deleted; you can always tap back.
+                <p className="px-1 pt-2 text-xs leading-relaxed text-faint">
+                  Tap any topic to move it Not Started → In Progress → Completed. Skills unlock as earlier ones are engaged — nothing is hidden forever.
                 </p>
-              </>
+              </section>
             )}
           </>
         )}

@@ -50,11 +50,11 @@ export function getScoreLabel(score: number): string {
 }
 
 export function getScoreColor(score: number): string {
-  if (score >= 90) return "text-emerald-400";
-  if (score >= 75) return "text-green-400";
-  if (score >= 60) return "text-yellow-400";
-  if (score >= 40) return "text-orange-400";
-  return "text-red-400";
+  if (score >= 90) return "text-success";
+  if (score >= 75) return "text-success";
+  if (score >= 60) return "text-warning";
+  if (score >= 40) return "text-warning";
+  return "text-error";
 }
 
 export function analyzePatterns(

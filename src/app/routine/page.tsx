@@ -7,9 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, RefreshCw, StickyNote, X, MoonStar } from "lucide-react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { Clock, RefreshCw, StickyNote, X, MoonStar, GraduationCap, HeartPulse, User, FolderKanban } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 
 interface RoutineTask {
   id: string;
@@ -19,26 +18,36 @@ interface RoutineTask {
   notes: string;
 }
 
+type EntryCategory = "faith" | "learning" | "health" | "personal" | "projects";
+
 interface TimelineEntry {
   minutes: number;
   label: string;
   sub?: string;
-  kind: "anchor" | "prayer" | "work" | "care" | "rest" | "faith";
+  category: EntryCategory;
 }
 
-const suggestedSchedule: Array<[string, string]> = [
-  ["05:00", "Wake Up"],
-  ["05:35", "Quran Reading"],
-  ["06:15", "Walking / Home Workout"],
-  ["07:30", "Breakfast"],
-  ["08:00", "Deep Work 1 — Learning focus"],
-  ["09:10", "Deep Work 2 — Coding practice"],
-  ["11:00", "Deep Work 3 — Project development"],
-  ["12:45", "Lunch"],
-  ["14:30", "Deep Work 4 — Study rotation"],
-  ["16:45", "Light block — Git & reading"],
-  ["19:00", "Bestie Time (~2h)"],
-  ["21:00", "Sleep"],
+const ENTRY_META: Record<EntryCategory, { label: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  faith: { label: "Faith", Icon: MoonStar },
+  learning: { label: "Learning", Icon: GraduationCap },
+  health: { label: "Health", Icon: HeartPulse },
+  personal: { label: "Personal", Icon: User },
+  projects: { label: "Projects", Icon: FolderKanban },
+};
+
+const suggestedSchedule: Array<[string, string, EntryCategory]> = [
+  ["05:00", "Wake Up", "personal"],
+  ["05:35", "Quran Reading", "faith"],
+  ["06:15", "Walking / Home Workout", "health"],
+  ["07:30", "Breakfast", "health"],
+  ["08:00", "Deep Work 1 · Learning focus", "learning"],
+  ["09:15", "Deep Work 2 · Coding practice", "learning"],
+  ["11:00", "Project Block · Build & ship", "projects"],
+  ["12:45", "Lunch", "health"],
+  ["14:30", "Deep Work 3 · Study rotation", "learning"],
+  ["16:45", "Light block · Git & docs", "projects"],
+  ["19:00", "Bestie Time (~2h)", "personal"],
+  ["21:00", "Sleep", "personal"],
 ];
 
 const PRAYER_ORDER = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
@@ -79,19 +88,6 @@ export default function TodayPage() {
   const [nowMin, setNowMin] = useState<number | null>(null);
   const [timezone, setTimezone] = useState("Asia/Karachi");
   const [sleepTime, setSleepTime] = useState("21:00");
-
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await fetch("/api/routine");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setTasks((data.tasks || []).map((t: RoutineTask) => ({ ...t, id: String(t.id) })));
-      if (data.routine?.wakeTime) setWakeTime(data.routine.wakeTime);
-    } catch {
-      setError("Couldn't load your routine. Please try again.");
-    }
-  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -144,15 +140,15 @@ export default function TodayPage() {
 
   const timeline: TimelineEntry[] = useMemo(() => {
     const entries: TimelineEntry[] = [];
-    const push = (hm: string, label: string, sub?: string, kind: TimelineEntry["kind"] = "anchor") =>
-      entries.push({ minutes: hmToMinutes(hm), label, sub, kind });
+    const push = (hm: string, label: string, sub?: string, category: EntryCategory = "personal") =>
+      entries.push({ minutes: hmToMinutes(hm), label, sub, category });
 
     const wake = wakeTime || "05:00";
-    push(wake, "Wake Up", undefined, "anchor");
+    push(wake, "Wake Up", undefined, "personal");
 
     for (const name of PRAYER_ORDER) {
       const hm = prayerTimes[name] ? formattedToHM(prayerTimes[name]) : null;
-      if (hm) push(hm, name, "Prayer", "prayer");
+      if (hm) push(hm, name, "Prayer", "faith");
     }
 
     const fajrHm = prayerTimes.Fajr ? formattedToHM(prayerTimes.Fajr) : null;
@@ -161,15 +157,14 @@ export default function TodayPage() {
     const maghribHm = prayerTimes.Maghrib ? formattedToHM(prayerTimes.Maghrib) : null;
     if (maghribHm) push(addMinutes(maghribHm, 20), "Darood-e-Pak", "after Maghrib", "faith");
 
-    for (const [hm, label] of suggestedSchedule) {
-      if (label === "Wake Up") continue;
-      const kind = label.startsWith("Deep Work") ? "work" : label.includes("Sleep") ? "rest" : label.includes("Bestie") ? "rest" : "care";
-      push(hm, label.replace(" — ", " · "), undefined, kind as TimelineEntry["kind"]);
+    for (const [hm, label, category] of suggestedSchedule) {
+      if (label === "Wake Up" || label === "Sleep") continue;
+      push(hm, label, undefined, category);
     }
 
-    if (sleepTime) push(sleepTime, "Sleep", undefined, "rest");
+    if (sleepTime) push(sleepTime, "Sleep", undefined, "personal");
     const reviewAt = addMinutes(sleepTime || "21:00", -15);
-    push(reviewAt, "Daily Review", "2–3 minutes", "anchor");
+    push(reviewAt, "Daily Review", "2–3 minutes", "personal");
 
     entries.sort((a, b) => a.minutes - b.minutes);
     // de-dup same-minute entries keeping order stable
@@ -402,14 +397,8 @@ export default function TodayPage() {
               {timeline.map((entry, i) => {
                 const isPast = nowMin !== null && entry.minutes < nowMin && i !== activeIndex;
                 const isActive = i === activeIndex;
-                const kindCls =
-                  entry.kind === "prayer"
-                    ? "text-faith font-medium"
-                    : entry.kind === "work"
-                    ? "text-accent"
-                    : entry.kind === "rest"
-                    ? "text-muted"
-                    : "text-ink";
+                const meta = ENTRY_META[entry.category];
+                const Icon = meta.Icon;
                 return (
                   <li
                     key={`${entry.minutes}-${entry.label}`}
@@ -423,12 +412,16 @@ export default function TodayPage() {
                     </span>
                     <span
                       aria-hidden="true"
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        entry.kind === "prayer" ? "bg-faith" : isActive ? "bg-accent" : "bg-line"
-                      }`}
+                      className={`h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-accent" : "bg-line"}`}
                     />
-                    <span className={`text-sm ${kindCls}`}>{entry.label}</span>
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-faint" />
+                    <span className={`truncate text-sm ${isActive ? "font-medium text-accent-strong" : "text-ink"}`}>
+                      {entry.label}
+                    </span>
                     {entry.sub && <span className="hidden text-xs text-faint sm:inline">· {entry.sub}</span>}
+                    <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-faint sm:inline">
+                      {meta.label}
+                    </span>
                     {isActive && (
                       <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">
                         NOW

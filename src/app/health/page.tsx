@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select } from "@/components/ui/select";
-import { Footprints, Dumbbell, Droplets, Utensils, BedDouble } from "lucide-react";
+import { Footprints, Dumbbell, Droplets, Utensils, BedDouble, Scale } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
 const todayStr = () => new Date().toISOString().split("T")[0];
@@ -15,6 +15,18 @@ const todayStr = () => new Date().toISOString().split("T")[0];
 interface MealRow {
   mealType: string;
   content: string;
+}
+
+interface WeightEntryRow {
+  date: string;
+  weightKg: number;
+  note?: string | null;
+}
+
+interface WeightData {
+  entries: WeightEntryRow[];
+  startWeightKg: number | null;
+  goalWeightKg: number | null;
 }
 
 export default function HealthPage() {
@@ -33,6 +45,9 @@ export default function HealthPage() {
   const [sleepQuality, setSleepQuality] = useState("");
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
   const [week, setWeek] = useState<Array<{ date: string; label: string; walk: boolean; work: boolean; waterOk: boolean }> | null>(null);
+  const [weight, setWeight] = useState<WeightData>({ entries: [], startWeightKg: null, goalWeightKg: null });
+  const [weightInput, setWeightInput] = useState("");
+  const [goalInput, setGoalInput] = useState("");
 
   const flash = (msg: string) => {
     setSavedFlash(msg);
@@ -72,9 +87,10 @@ export default function HealthPage() {
     setLoading(true);
     setError(null);
     try {
-      const [res, settingsRes] = await Promise.all([
+      const [res, settingsRes, weightRes] = await Promise.all([
         fetch(`/api/health?date=${todayStr()}`),
         fetch("/api/settings"),
+        fetch("/api/weight"),
       ]);
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -102,6 +118,18 @@ export default function HealthPage() {
         const s = await settingsRes.json();
         if (s.settings?.walkingTargetMins) setWalkingTarget(s.settings.walkingTargetMins);
         if (s.settings?.workoutTargetMins) setWorkoutTarget(s.settings.workoutTargetMins);
+      }
+      if (weightRes.ok) {
+        const w = await weightRes.json();
+        const wd: WeightData = {
+          entries: (w.entries ?? []) as WeightEntryRow[],
+          startWeightKg: w.startWeightKg ?? null,
+          goalWeightKg: w.goalWeightKg ?? null,
+        };
+        setWeight(wd);
+        const latest = wd.entries[wd.entries.length - 1];
+        if (latest) setWeightInput(String(latest.weightKg));
+        if (wd.goalWeightKg != null) setGoalInput(String(wd.goalWeightKg));
       }
       loadWeek();
     } catch {
@@ -175,6 +203,46 @@ export default function HealthPage() {
       hours,
       quality: Number.isInteger(quality) && quality >= 1 && quality <= 5 ? quality : null,
     });
+  };
+
+  const saveWeight = async () => {
+    const kg = parseFloat(weightInput);
+    if (!Number.isFinite(kg) || kg < 20 || kg > 400) {
+      setError("Weight must be between 20 and 400 kg.");
+      return;
+    }
+    setError(null);
+    try {
+      const res = await fetch("/api/weight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weightKg: kg }),
+      });
+      if (!res.ok) throw new Error(await res.json().then((j) => j.error).catch(() => ""));
+      const w = await res.json();
+      setWeight((prev) => {
+        const entries = [...prev.entries.filter((e) => e.date !== w.entry.date), w.entry].sort((a, b) =>
+          a.date.localeCompare(b.date)
+        );
+        return {
+          entries,
+          startWeightKg: w.startWeightKg ?? prev.startWeightKg,
+          goalWeightKg: prev.goalWeightKg,
+        };
+      });
+      const goalNum = parseFloat(goalInput);
+      if (Number.isFinite(goalNum) && goalNum >= 20 && goalNum <= 400 && goalNum !== w.goalWeightKg) {
+        await fetch("/api/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ goalWeightKg: goalNum }),
+        });
+        setWeight((prev) => ({ ...prev, goalWeightKg: goalNum }));
+      }
+      flash("Weight saved");
+    } catch (e) {
+      setError(e instanceof Error && e.message ? `Could not save weight: ${e.message}` : "Could not save weight. Try again.");
+    }
   };
 
   const mealField = (mealType: string, label: string, placeholder: string) => (
@@ -257,8 +325,8 @@ export default function HealthPage() {
               <Card>
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-orange-900/50 flex items-center justify-center">
-                      <Dumbbell className="h-5 w-5 text-orange-400" />
+                    <div className="h-10 w-10 rounded-lg bg-warning-tint flex items-center justify-center">
+                      <Dumbbell className="h-5 w-5 text-warning" />
                     </div>
                     <div>
                       <p className="text-xs text-muted">Workout</p>
@@ -275,8 +343,8 @@ export default function HealthPage() {
               <Card>
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-cyan-900/50 flex items-center justify-center">
-                      <Droplets className="h-5 w-5 text-cyan-400" />
+                    <div className="h-10 w-10 rounded-lg bg-accent-tint flex items-center justify-center">
+                      <Droplets className="h-5 w-5 text-accent" />
                     </div>
                     <div>
                       <p className="text-xs text-muted">Water</p>
@@ -294,8 +362,8 @@ export default function HealthPage() {
               <Card>
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-purple-900/50 flex items-center justify-center">
-                      <BedDouble className="h-5 w-5 text-purple-400" />
+                    <div className="h-10 w-10 rounded-lg bg-faith-tint flex items-center justify-center">
+                      <BedDouble className="h-5 w-5 text-faith" />
                     </div>
                     <div>
                       <p className="text-xs text-muted">Last Night&apos;s Sleep</p>
@@ -331,6 +399,15 @@ export default function HealthPage() {
                 </CardContent>
               </Card>
             </div>
+
+            <WeightCard
+              weight={weight}
+              weightInput={weightInput}
+              goalInput={goalInput}
+              onWeightInput={setWeightInput}
+              onGoalInput={setGoalInput}
+              onSave={saveWeight}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
@@ -383,5 +460,207 @@ export default function HealthPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function WeightCard({
+  weight,
+  weightInput,
+  goalInput,
+  onWeightInput,
+  onGoalInput,
+  onSave,
+}: {
+  weight: WeightData;
+  weightInput: string;
+  goalInput: string;
+  onWeightInput: (v: string) => void;
+  onGoalInput: (v: string) => void;
+  onSave: () => void;
+}) {
+  const { entries, startWeightKg, goalWeightKg } = weight;
+  const latest = entries.length > 0 ? entries[entries.length - 1] : null;
+
+  const changeFromStart =
+    latest && startWeightKg != null ? +(latest.weightKg - startWeightKg).toFixed(1) : null;
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoStr = weekAgo.toISOString().split("T")[0];
+  const baseline =
+    entries.find((e) => e.date >= weekAgoStr && e.weightKg !== latest?.weightKg) ?? null;
+  const weeklyTrend = latest && baseline ? +(latest.weightKg - baseline.weightKg).toFixed(1) : null;
+
+  let progressPct: number | null = null;
+  if (latest && startWeightKg != null && goalWeightKg != null) {
+    const total = Math.abs(goalWeightKg - startWeightKg);
+    if (total >= 0.1) {
+      progressPct = Math.max(0, Math.min(100, Math.round(((latest.weightKg - startWeightKg) / (goalWeightKg - startWeightKg)) * 100)));
+    }
+  }
+
+  const fmtDate = (iso: string) =>
+    new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const fmtKg = (n: number) => `${n.toFixed(1)} kg`;
+  const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(1)} kg`;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Scale className="h-4 w-4 text-muted" aria-hidden="true" />
+          Weight
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!latest ? (
+          <>
+            <p className="text-sm text-muted">
+              No weight logged yet. Log your first entry to start tracking — nothing is assumed or estimated.
+            </p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="space-y-1">
+                <label htmlFor="weight-first" className="text-xs text-muted uppercase tracking-wider">
+                  Today&apos;s weight (kg)
+                </label>
+                <Input
+                  id="weight-first"
+                  type="number"
+                  step="0.1"
+                  min="20"
+                  max="400"
+                  value={weightInput}
+                  onChange={(e) => onWeightInput(e.target.value)}
+                  placeholder="e.g., 72.5"
+                  className="w-32"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="goal-first" className="text-xs text-muted uppercase tracking-wider">
+                  Goal kg (optional)
+                </label>
+                <Input
+                  id="goal-first"
+                  type="number"
+                  step="0.1"
+                  min="20"
+                  max="400"
+                  value={goalInput}
+                  onChange={(e) => onGoalInput(e.target.value)}
+                  placeholder="e.g., 70"
+                  className="w-32"
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={onSave}>
+                Save entry
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Current" value={fmtKg(latest.weightKg)} sub={`Logged ${fmtDate(latest.date)}`} />
+              <Stat label="Starting" value={startWeightKg != null ? fmtKg(startWeightKg) : "—"} />
+              <Stat label="Goal" value={goalWeightKg != null ? fmtKg(goalWeightKg) : "Not set"} />
+              <Stat
+                label="Change"
+                value={changeFromStart != null && changeFromStart !== 0 ? signed(changeFromStart) : "—"}
+                sub={changeFromStart === 0 ? "No change yet" : undefined}
+              />
+            </dl>
+
+            {progressPct != null && (
+              <div>
+                <div className="flex items-baseline justify-between text-xs text-muted">
+                  <span>Progress toward goal</span>
+                  <span className="font-semibold text-ink">{progressPct}%</span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface2">
+                  <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-muted">
+              {weeklyTrend != null && weeklyTrend !== 0
+                ? `${signed(weeklyTrend)} since ${fmtDate(baseline!.date)}.`
+                : entries.length > 1
+                ? `No change across your recent logs (${entries.length} entries).`
+                : "Log again in a few days to see a trend."}
+            </p>
+
+            <div className="flex flex-wrap items-end gap-2 border-t border-line pt-4">
+              <div className="space-y-1">
+                <label htmlFor="weight-update" className="text-xs text-muted uppercase tracking-wider">
+                  Update weight (kg)
+                </label>
+                <Input
+                  id="weight-update"
+                  type="number"
+                  step="0.1"
+                  min="20"
+                  max="400"
+                  value={weightInput}
+                  onChange={(e) => onWeightInput(e.target.value)}
+                  className="w-28"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="goal-update" className="text-xs text-muted uppercase tracking-wider">
+                  Goal kg
+                </label>
+                <Input
+                  id="goal-update"
+                  type="number"
+                  step="0.1"
+                  min="20"
+                  max="400"
+                  value={goalInput}
+                  onChange={(e) => onGoalInput(e.target.value)}
+                  placeholder="Not set"
+                  className="w-28"
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={onSave}>
+                Save today&apos;s weight
+              </Button>
+            </div>
+
+            {entries.length > 1 && (
+              <ul className="space-y-1 border-t border-line pt-3" aria-label="Weight history">
+                {[...entries]
+                  .slice(-8)
+                  .reverse()
+                  .map((e, i, arr) => {
+                    const prev = arr[i + 1];
+                    const delta = prev ? +(e.weightKg - prev.weightKg).toFixed(1) : null;
+                    return (
+                      <li key={e.date} className="flex items-baseline justify-between text-sm">
+                        <span className="text-muted">{fmtDate(e.date)}</span>
+                        <span className="font-medium text-ink">
+                          {fmtKg(e.weightKg)}
+                          {delta != null && delta !== 0 && (
+                            <span className="ml-2 text-xs font-normal text-faint">{signed(delta)}</span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted uppercase tracking-wider">{label}</dt>
+      <dd className="mt-0.5 text-lg font-bold text-ink">{value}</dd>
+      {sub && <p className="text-[11px] text-faint">{sub}</p>}
+    </div>
   );
 }

@@ -70,18 +70,6 @@ export default function HomePage() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-    fetch("/api/settings")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.settings?.timezone && setTimezone(d.settings.timezone))
-      .catch(() => {});
-    fetch("/api/skills")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => pickFocus(d?.skills || []))
-      .catch(() => {});
-  }, [load]);
-
   const pickFocus = (skills: Array<Record<string, unknown>>) => {
     for (const s of skills) {
       const topics = (s.topics as Array<{ id: string; title: string; status: string }>) || [];
@@ -102,6 +90,18 @@ export default function HomePage() {
       }
     }
   };
+
+  useEffect(() => {
+    load();
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.settings?.timezone && setTimezone(d.settings.timezone))
+      .catch(() => {});
+    fetch("/api/skills")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => pickFocus(d?.skills || []))
+      .catch(() => {});
+  }, [load]);
 
   // Live clock in the user's timezone.
   useEffect(() => {
@@ -333,18 +333,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Quick actions ── */}
-        <section aria-label="Quick actions">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <QuickAction icon={MoonStar} label="Mark Prayer" sub={`${prayers.completed}/${prayers.total} today`} href="/faith#namaz" />
-            <QuickAction icon={BookOpen} label="Log Quran" sub={data.quran.completed ? "Done ✓" : `${data.quran.pagesRead} pages`} href="/faith#quran" />
-            <QuickAction icon={Feather} label="+33 Darood" sub={`${data.darood.count}/${data.darood.target}`} onClick={quickDarood} disabled={busyAction === "darood"} />
-            <QuickAction icon={GraduationCap} label="Start Learning" sub={focus ? focus.topic : "Pick a topic"} href="/learning" />
-            <QuickAction icon={Footprints} label="Log Walk" sub={data.health.walking.completed ? "Done ✓" : `${data.health.walking.targetMins ?? 30} min`} onClick={quickWalk} disabled={busyAction === "walk" || data.health.walking.completed} />
-            <QuickAction icon={Droplets} label="Water +1" sub={`${data.health.water}/8`} onClick={quickWater} disabled={busyAction === "water"} />
-          </div>
-        </section>
-
         {/* ── Current learning focus ── */}
         {focus && (
           <section aria-label="Current learning focus">
@@ -368,7 +356,7 @@ export default function HomePage() {
         )}
 
         {/* ── Domain summaries ── */}
-        <section aria-label="Summary" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="Summary" className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <SummaryCard
             href="/faith"
             icon={MoonStar}
@@ -378,17 +366,6 @@ export default function HomePage() {
               { label: "Prayers", value: `${prayers.completed}/${prayers.total}` },
               { label: "Quran", value: data.quran.completed ? "Done" : data.quran.pagesRead > 0 ? `${data.quran.pagesRead} pages` : "Not yet" },
               { label: "Darood", value: `${data.darood.count}/${data.darood.target}` },
-            ]}
-          />
-          <SummaryCard
-            href="/learning"
-            icon={GraduationCap}
-            tint="accent"
-            title="Learning"
-            rows={[
-              { label: "Skill", value: focus ? focus.skill : "—" },
-              { label: "Topic", value: focus ? focus.topic : "—" },
-              { label: "Today", value: `${learning.hours}h / ${learning.targetHours}h` },
             ]}
           />
           <SummaryCard
@@ -417,6 +394,18 @@ export default function HomePage() {
                 : [{ label: "Active", value: "None yet" }, { label: "Start", value: "Create a project" }]
             }
           />
+        </section>
+
+        {/* ── Quick actions (last — tools, not the headline) ── */}
+        <section aria-label="Quick actions">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <QuickAction icon={MoonStar} label="Mark Prayer" sub={`${prayers.completed}/${prayers.total} today`} href="/faith#namaz" />
+            <QuickAction icon={BookOpen} label="Log Quran" sub={data.quran.completed ? "Done ✓" : `${data.quran.pagesRead} pages`} href="/faith#quran" />
+            <QuickAction icon={Feather} label="+33 Darood" sub={`${data.darood.count}/${data.darood.target}`} onClick={quickDarood} disabled={busyAction === "darood"} />
+            <QuickAction icon={GraduationCap} label="Start Learning" sub={focus ? focus.topic : "Pick a topic"} href="/learning" />
+            <QuickAction icon={Footprints} label="Log Walk" sub={data.health.walking.completed ? "Done ✓" : `${data.health.walking.targetMins ?? 30} min`} onClick={quickWalk} disabled={busyAction === "walk" || data.health.walking.completed} />
+            <QuickAction icon={Droplets} label="Water +1" sub={`${data.health.water}/8`} onClick={quickWater} disabled={busyAction === "water"} />
+          </div>
         </section>
       </div>
     </AppShell>

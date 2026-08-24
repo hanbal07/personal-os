@@ -55,22 +55,22 @@ export default function FaithPage() {
         {/* Hero */}
         <section
           aria-label="Next prayer"
-          className="rounded-2xl bg-hero px-5 py-5 text-white sm:px-7 sm:py-6"
+          className="rounded-2xl border border-line bg-surface px-5 py-5 sm:px-7 sm:py-6"
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/60">Faith</p>
-              <p className="mt-1 text-sm text-white/70">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-faint">Faith</p>
+              <p className="mt-1 text-sm text-muted">
                 {loading ? "Loading prayer times…" : locationLabel ? `Times for ${locationLabel}` : "Your worship tracker"}
               </p>
               {nextPrayer && (
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="text-3xl font-bold tracking-tight">{nextPrayer.name}</span>
+                  <span className="text-3xl font-bold tracking-tight text-ink">{nextPrayer.name}</span>
                   {nextPrayer.formatted && (
-                    <span className="text-lg text-white/80">{nextPrayer.formatted}</span>
+                    <span className="text-lg text-muted">{nextPrayer.formatted}</span>
                   )}
                   {remaining && (
-                    <Badge variant="outline" className="border-white/25 text-white/80">
+                    <Badge variant="outline" className="border-line text-muted">
                       in {remaining}
                     </Badge>
                   )}

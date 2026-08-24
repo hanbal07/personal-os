@@ -62,6 +62,13 @@ export async function PATCH(request: NextRequest) {
     data.dailyLearningHours = num(body.dailyLearningHours, 0, 24);
     data.walkingTargetMins = num(body.walkingTargetMins, 0, 600);
     data.workoutTargetMins = num(body.workoutTargetMins, 0, 600);
+    const numOrNull = (v: unknown, min: number, max: number) => {
+      if (v === null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) && n >= min && n <= max ? n : undefined;
+    };
+    data.startWeightKg = numOrNull(body.startWeightKg, 20, 400);
+    data.goalWeightKg = numOrNull(body.goalWeightKg, 20, 400);
     if (typeof body.strictMode === "boolean") data.strictMode = body.strictMode;
     if (typeof body.notificationsOn === "boolean") data.notificationsOn = body.notificationsOn;
 
