@@ -287,7 +287,7 @@ export default function LearningPage() {
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <p className="text-xs font-medium uppercase tracking-[0.14em] text-faint">{focus.skill.name}</p>
-                        <p className="mt-1 truncate text-lg font-semibold text-ink">{focus.topic.title}</p>
+                        <p className="mt-1 truncate text-xl font-semibold tracking-tight text-ink sm:text-2xl">{focus.topic.title}</p>
                         {focus.topic.description && (
                           <p className="mt-0.5 line-clamp-2 text-sm text-muted">{focus.topic.description}</p>
                         )}

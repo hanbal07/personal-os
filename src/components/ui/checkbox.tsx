@@ -14,7 +14,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         <div className="relative">
           <input
             type="checkbox"
-            className="peer sr-only"
+            className="peer absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer opacity-0"
             ref={ref}
             checked={checked}
             onChange={onChange}

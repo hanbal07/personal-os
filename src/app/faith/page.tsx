@@ -59,7 +59,7 @@ export default function FaithPage() {
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-faint">Faith</p>
+              <h1 className="text-xs font-medium uppercase tracking-[0.2em] text-faint">Faith</h1>
               <p className="mt-1 text-sm text-muted">
                 {loading ? "Loading prayer times…" : locationLabel ? `Times for ${locationLabel}` : "Your worship tracker"}
               </p>
@@ -93,7 +93,7 @@ export default function FaithPage() {
             <a
               key={id}
               href={`#${id}`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent hover:text-accent"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-accent hover:text-accent"
             >
               <Icon className="h-3.5 w-3.5" />
               {label}
@@ -107,7 +107,10 @@ export default function FaithPage() {
             <h2 id="namaz-heading" className="text-xl font-bold tracking-tight text-ink">
               Namaz
             </h2>
-            <Link href="/namaz" className="text-sm font-medium text-accent hover:text-accent-strong">
+            <Link
+              href="/namaz"
+              className="-my-2 inline-flex items-center gap-1 rounded px-2 py-2 text-sm font-medium text-accent hover:text-accent-strong"
+            >
               Full page <ArrowRight className="inline h-3.5 w-3.5" />
             </Link>
           </div>
@@ -120,7 +123,10 @@ export default function FaithPage() {
             <h2 id="quran-heading" className="text-xl font-bold tracking-tight text-ink">
               Quran &amp; Darood-e-Pak
             </h2>
-            <Link href="/quran" className="text-sm font-medium text-accent hover:text-accent-strong">
+            <Link
+              href="/quran"
+              className="-my-2 inline-flex items-center gap-1 rounded px-2 py-2 text-sm font-medium text-accent hover:text-accent-strong"
+            >
               Full page <ArrowRight className="inline h-3.5 w-3.5" />
             </Link>
           </div>

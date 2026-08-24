@@ -423,7 +423,7 @@ export default function TodayPage() {
                       {meta.label}
                     </span>
                     {isActive && (
-                      <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">
+                      <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold tracking-wide text-white">
                         NOW
                       </span>
                     )}

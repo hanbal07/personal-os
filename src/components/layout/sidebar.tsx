@@ -37,8 +37,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <Zap className="h-4.5 w-4.5 text-paper" size={18} />
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-tight text-ink">PersonalOS</h1>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-faint">Command Center</p>
+              <div className="text-sm font-bold tracking-tight text-ink">PersonalOS</div>
+              <p className="text-[11px] uppercase tracking-[0.14em] text-faint">Command Center</p>
             </div>
           </Link>
           <button
@@ -101,7 +101,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         <div className="border-t border-line px-5 py-4">
-          <p className="text-[10px] uppercase tracking-wider text-faint">Discipline over motivation</p>
+          <p className="text-[11px] uppercase tracking-wider text-faint">Discipline over motivation</p>
         </div>
       </aside>
     </>

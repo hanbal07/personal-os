@@ -484,7 +484,10 @@ function SummaryCard({
             </span>
             <h3 className="text-sm font-semibold text-ink">{title}</h3>
           </div>
-          <Link href={href} className="text-xs font-medium text-accent hover:underline">
+          <Link
+            href={href}
+            className="-my-2 inline-flex items-center gap-1 rounded px-2 py-2 text-xs font-medium text-accent hover:underline"
+          >
             View <ArrowRight className="inline h-3 w-3" />
           </Link>
         </div>
