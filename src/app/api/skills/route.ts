@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
       const lastSession = skill.sessions.sort((a, b) => b.date.getTime() - a.date.getTime())[0];
       const currentTopic = skill.topics.find((t) => t.status === "IN_PROGRESS");
       const nextTopic = skill.topics.find((t) => t.status === "NOT_STARTED");
+      // Derive totals from real topic rows — the denormalized columns can drift.
+      const realTotal = skill.topics.length;
+      const realComplete = skill.topics.filter((t) => t.status === "COMPLETED").length;
 
       return {
         id: skill.id,
@@ -34,9 +37,9 @@ export async function GET(request: NextRequest) {
         slug: skill.slug,
         phase: skill.phase,
         level: skill.level,
-        progress: skill.topicsTotal > 0 ? Math.round((skill.topicsComplete / skill.topicsTotal) * 100) : 0,
-        topicsCompleted: skill.topicsComplete,
-        topicsTotal: skill.topicsTotal,
+        progress: realTotal > 0 ? Math.round((realComplete / realTotal) * 100) : 0,
+        topicsCompleted: realComplete,
+        topicsTotal: realTotal,
         practiceHours: Math.round(practiceHours * 10) / 10,
         projectCount: 0,
         lastStudied: lastSession ? lastSession.date.toISOString().split("T")[0] : null,
