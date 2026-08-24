@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
       longitude: settings?.longitude ?? 74.3587,
       method: settings?.prayerCalcMethod ?? "Karachi",
       madhab: settings?.juristicMethod ?? "Hanafi",
+      timezone,
     };
 
     // Single parallel batch â€” every record needed below is fetched exactly once.

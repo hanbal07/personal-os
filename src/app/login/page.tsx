@@ -49,11 +49,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-paper flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto h-12 w-12 rounded-xl bg-white flex items-center justify-center">
-            <Zap className="h-7 w-7 text-zinc-950" />
+          <div className="mx-auto h-12 w-12 rounded-xl bg-hero flex items-center justify-center">
+            <Zap className="h-7 w-7 text-white" />
           </div>
           <div>
             <CardTitle className="text-xl">PersonalOS</CardTitle>
@@ -65,7 +65,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-xs text-zinc-500 uppercase tracking-wider">
+              <label htmlFor="email" className="text-xs text-muted uppercase tracking-wider">
                 Email
               </label>
               <Input
@@ -78,7 +78,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-xs text-zinc-500 uppercase tracking-wider">
+              <label htmlFor="password" className="text-xs text-muted uppercase tracking-wider">
                 Password
               </label>
               <Input
@@ -91,7 +91,7 @@ export default function LoginPage() {
               />
             </div>
             {error && (
-              <p className="text-sm text-red-400" role="alert">
+              <p className="text-sm text-error" role="alert">
                 {error}
               </p>
             )}

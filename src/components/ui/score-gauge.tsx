@@ -11,11 +11,11 @@ interface ScoreGaugeProps {
 
 function ScoreGauge({ score, size = "md", className, showLabel = true }: ScoreGaugeProps) {
   const getColor = (s: number) => {
-    if (s >= 90) return { stroke: "#10b981", bg: "text-emerald-400" };
-    if (s >= 75) return { stroke: "#22c55e", bg: "text-green-400" };
-    if (s >= 60) return { stroke: "#eab308", bg: "text-yellow-400" };
-    if (s >= 40) return { stroke: "#f97316", bg: "text-orange-400" };
-    return { stroke: "#ef4444", bg: "text-red-400" };
+    if (s >= 90) return { stroke: "#16a34a", bg: "text-success" };
+    if (s >= 75) return { stroke: "#22c55e", bg: "text-success" };
+    if (s >= 60) return { stroke: "#d97706", bg: "text-warning" };
+    if (s >= 40) return { stroke: "#ea580c", bg: "text-warning" };
+    return { stroke: "#dc2626", bg: "text-error" };
   };
 
   const getLabel = (s: number) => {
@@ -52,7 +52,7 @@ function ScoreGauge({ score, size = "md", className, showLabel = true }: ScoreGa
             cy={outer / 2}
             r={radius}
             fill="none"
-            stroke="#27272a"
+            stroke="#e4e4e7"
             strokeWidth={sw}
           />
           <circle
@@ -69,7 +69,7 @@ function ScoreGauge({ score, size = "md", className, showLabel = true }: ScoreGa
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn("font-bold text-white", textSize)}>
+          <span className={cn("font-bold text-ink", textSize)}>
             {score}
           </span>
         </div>

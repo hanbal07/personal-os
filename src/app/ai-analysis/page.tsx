@@ -58,8 +58,8 @@ export default function AIAnalysisPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">AI Personal Analyst</h1>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h1 className="text-2xl font-bold text-ink">AI Personal Analyst</h1>
+            <p className="text-sm text-muted mt-1">
               Analyze your patterns and get actionable recommendations
             </p>
           </div>
@@ -72,9 +72,9 @@ export default function AIAnalysisPage() {
         {!analysis && !loading && needsMoreData && (
           <Card>
             <CardContent className="py-16 text-center">
-              <Clock className="h-12 w-12 text-zinc-700 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-zinc-400">Not enough data yet</h3>
-              <p className="text-sm text-zinc-600 mt-2 max-w-md mx-auto">
+              <Clock className="h-12 w-12 text-faint mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted">Not enough data yet</h3>
+              <p className="text-sm text-faint mt-2 max-w-md mx-auto">
                 Not enough data yet. Continue tracking for several days before
                 generating meaningful analysis.
               </p>
@@ -85,8 +85,8 @@ export default function AIAnalysisPage() {
         {!analysis && !loading && !needsMoreData && error && (
           <Card>
             <CardContent className="py-12 text-center">
-              <AlertTriangle className="h-10 w-10 text-red-400/60 mx-auto mb-3" />
-              <p className="text-sm text-red-400">{error}</p>
+              <AlertTriangle className="h-10 w-10 text-error/60 mx-auto mb-3" />
+              <p className="text-sm text-error">{error}</p>
             </CardContent>
           </Card>
         )}
@@ -94,9 +94,9 @@ export default function AIAnalysisPage() {
         {!analysis && !loading && !needsMoreData && !error && (
           <Card>
             <CardContent className="py-16 text-center">
-              <Brain className="h-12 w-12 text-zinc-700 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-zinc-400">No Analysis Yet</h3>
-              <p className="text-sm text-zinc-600 mt-2 max-w-md mx-auto">
+              <Brain className="h-12 w-12 text-faint mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted">No Analysis Yet</h3>
+              <p className="text-sm text-faint mt-2 max-w-md mx-auto">
                 Click &quot;Generate Analysis&quot; to analyze your weekly patterns,
                 identify strengths and weaknesses, and get personalized recommendations.
               </p>
@@ -107,8 +107,8 @@ export default function AIAnalysisPage() {
         {loading && (
           <Card>
             <CardContent className="py-16 text-center">
-              <div className="animate-spin h-8 w-8 border-2 border-zinc-700 border-t-white rounded-full mx-auto mb-4" />
-              <p className="text-sm text-zinc-400">Analyzing your data...</p>
+              <div className="animate-spin h-8 w-8 border-2 border-line border-t-accent rounded-full mx-auto mb-4" />
+              <p className="text-sm text-muted">Analyzing your data...</p>
             </CardContent>
           </Card>
         )}
@@ -118,29 +118,29 @@ export default function AIAnalysisPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="p-5">
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Discipline Score</p>
-                  <p className="text-2xl font-bold text-white mt-1">{analysis.summary.disciplineScore}%</p>
+                  <p className="text-xs text-muted uppercase tracking-wider">Discipline Score</p>
+                  <p className="text-2xl font-bold text-ink mt-1">{analysis.summary.disciplineScore}%</p>
                   <Badge variant="secondary" className="mt-2">This Week</Badge>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5">
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Learning Hours</p>
-                  <p className="text-2xl font-bold text-white mt-1">{analysis.summary.learningHours}h</p>
+                  <p className="text-xs text-muted uppercase tracking-wider">Learning Hours</p>
+                  <p className="text-2xl font-bold text-ink mt-1">{analysis.summary.learningHours}h</p>
                   <Badge variant="secondary" className="mt-2">Target: 56h</Badge>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5">
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Tasks Completed</p>
-                  <p className="text-2xl font-bold text-white mt-1">{analysis.summary.tasksCompleted}</p>
+                  <p className="text-xs text-muted uppercase tracking-wider">Tasks Completed</p>
+                  <p className="text-2xl font-bold text-ink mt-1">{analysis.summary.tasksCompleted}</p>
                   <Badge variant="success" className="mt-2">81% rate</Badge>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-5">
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider">Tasks Missed</p>
-                  <p className="text-2xl font-bold text-white mt-1">{analysis.summary.tasksMissed}</p>
+                  <p className="text-xs text-muted uppercase tracking-wider">Tasks Missed</p>
+                  <p className="text-2xl font-bold text-ink mt-1">{analysis.summary.tasksMissed}</p>
                   <Badge variant="destructive" className="mt-2">Needs attention</Badge>
                 </CardContent>
               </Card>
@@ -150,15 +150,15 @@ export default function AIAnalysisPage() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <CheckCircle2 className="h-4 w-4 text-success" />
                     What You&apos;re Doing Well
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {analysis.strengths.map((s, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <TrendingUp className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-zinc-300">{s}</span>
+                      <TrendingUp className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-ink">{s}</span>
                     </div>
                   ))}
                 </CardContent>
@@ -167,15 +167,15 @@ export default function AIAnalysisPage() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-red-400" />
+                    <AlertTriangle className="h-4 w-4 text-error" />
                     Areas Needing Improvement
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {analysis.weaknesses.map((w, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <TrendingDown className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-zinc-300">{w}</span>
+                      <TrendingDown className="h-4 w-4 text-error mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-ink">{w}</span>
                     </div>
                   ))}
                 </CardContent>
@@ -184,17 +184,17 @@ export default function AIAnalysisPage() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-blue-400" />
+                    <Clock className="h-4 w-4 text-accent" />
                     Patterns Detected
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {analysis.patterns.map((p, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <div className="h-4 w-4 rounded-full bg-blue-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-[10px] text-blue-400 font-bold">{i + 1}</span>
+                      <div className="h-4 w-4 rounded-full bg-accent-tint flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-[10px] text-accent font-bold">{i + 1}</span>
                       </div>
-                      <span className="text-sm text-zinc-300">{p}</span>
+                      <span className="text-sm text-ink">{p}</span>
                     </div>
                   ))}
                 </CardContent>
@@ -203,15 +203,15 @@ export default function AIAnalysisPage() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Lightbulb className="h-4 w-4 text-yellow-400" />
+                    <Lightbulb className="h-4 w-4 text-warning" />
                     Recommendations
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {analysis.recommendations.map((r, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <ArrowRight className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm text-zinc-300">{r}</span>
+                      <ArrowRight className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-ink">{r}</span>
                     </div>
                   ))}
                 </CardContent>

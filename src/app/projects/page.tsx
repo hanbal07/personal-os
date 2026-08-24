@@ -27,13 +27,13 @@ const PHASES = ["IDEA", "PLANNING", "DEVELOPMENT", "TESTING", "DOCUMENTATION", "
 const phaseOptions = PHASES.map((p) => ({ value: p, label: p }));
 
 const phaseColors: Record<string, string> = {
-  IDEA: "bg-zinc-800 text-zinc-400",
-  PLANNING: "bg-blue-900/50 text-blue-400",
-  DEVELOPMENT: "bg-yellow-900/50 text-yellow-400",
-  TESTING: "bg-orange-900/50 text-orange-400",
-  DOCUMENTATION: "bg-purple-900/50 text-purple-400",
-  GITHUB: "bg-cyan-900/50 text-cyan-400",
-  COMPLETED: "bg-emerald-900/50 text-emerald-400",
+  IDEA: "bg-surface2 text-muted",
+  PLANNING: "bg-accent-tint text-accent-strong",
+  DEVELOPMENT: "bg-warning-tint text-warning",
+  TESTING: "bg-warning-tint/70 text-warning",
+  DOCUMENTATION: "bg-accent-tint/60 text-accent-strong",
+  GITHUB: "bg-faith-tint text-faith",
+  COMPLETED: "bg-success-tint text-success",
 };
 
 export default function ProjectsPage() {
@@ -127,8 +127,8 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Projects</h1>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h1 className="text-2xl font-bold text-ink">Projects</h1>
+            <p className="text-sm text-muted mt-1">
               Idea → Planning → Development → Testing → Documentation → GitHub → Done
             </p>
           </div>
@@ -139,7 +139,7 @@ export default function ProjectsPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg border border-error/30 bg-error-tint px-4 py-3 text-sm text-error">
             {error}
           </div>
         )}
@@ -167,12 +167,12 @@ export default function ProjectsPage() {
         )}
 
         {loading ? (
-          <Card><CardContent className="p-6 text-sm text-zinc-500">Loading projects…</CardContent></Card>
+          <Card><CardContent className="p-6 text-sm text-muted">Loading projects…</CardContent></Card>
         ) : projects.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center space-y-2">
-              <FolderKanban className="h-8 w-8 text-zinc-700 mx-auto" />
-              <p className="text-sm text-zinc-500">
+              <FolderKanban className="h-8 w-8 text-faint mx-auto" />
+              <p className="text-sm text-muted">
                 No projects yet. Create your first one — it starts in the IDEA phase.
               </p>
             </CardContent>
@@ -186,7 +186,7 @@ export default function ProjectsPage() {
                     <div className="min-w-0">
                       <CardTitle className="text-base truncate">{project.title}</CardTitle>
                       {project.description && (
-                        <p className="text-xs text-zinc-500 mt-1">{project.description}</p>
+                        <p className="text-xs text-muted mt-1">{project.description}</p>
                       )}
                     </div>
                     <Badge className={phaseColors[project.phase]}>{project.phase}</Badge>
@@ -197,7 +197,7 @@ export default function ProjectsPage() {
 
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="w-44">
-                      <label className="text-xs text-zinc-500 uppercase tracking-wider block mb-1">Phase</label>
+                      <label className="text-xs text-muted uppercase tracking-wider block mb-1">Phase</label>
                       <Select
                         options={phaseOptions}
                         value={project.phase}
@@ -206,7 +206,7 @@ export default function ProjectsPage() {
                       />
                     </div>
                     <div className="w-24">
-                      <label className="text-xs text-zinc-500 uppercase tracking-wider block mb-1">% Done</label>
+                      <label className="text-xs text-muted uppercase tracking-wider block mb-1">% Done</label>
                       <Input
                         type="number"
                         min={0}
@@ -224,12 +224,12 @@ export default function ProjectsPage() {
                   </div>
 
                   {(project.skills || project.technologies) && (
-                    <p className="text-xs text-zinc-600">
+                    <p className="text-xs text-faint">
                       {[project.skills, project.technologies].filter(Boolean).join(" · ")}
                     </p>
                   )}
 
-                  <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+                  <div className="pt-2 border-t border-line flex items-center justify-between">
                     {project.githubUrl ? (
                       <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
                         <Button variant="outline" size="sm">
@@ -243,7 +243,7 @@ export default function ProjectsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-400 hover:text-red-300"
+                      className="text-error hover:text-error"
                       aria-label={`Delete project ${project.title}`}
                       onClick={() => remove(project)}
                       disabled={busyId === project.id}

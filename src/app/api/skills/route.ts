@@ -42,7 +42,15 @@ export async function GET(request: NextRequest) {
         lastStudied: lastSession ? lastSession.date.toISOString().split("T")[0] : null,
         currentTopic: currentTopic?.title || "-",
         nextTopic: nextTopic?.title || "-",
-        topics: skill.topics.map((t) => ({ id: t.id, title: t.title, status: t.status })),
+        topics: skill.topics.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          phase: t.phase,
+          order: t.order,
+          durationMins: t.durationMins,
+          description: t.description,
+        })),
       };
     });
 

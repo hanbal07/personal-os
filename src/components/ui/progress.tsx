@@ -17,25 +17,23 @@ function Progress({
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
 
   const barVariants = {
-    default: "bg-white",
-    success: "bg-emerald-500",
-    warning: "bg-yellow-500",
-    destructive: "bg-red-500",
+    default: "bg-accent",
+    success: "bg-success",
+    warning: "bg-warning",
+    destructive: "bg-error",
   };
 
   return (
     <div
-      className={cn(
-        "relative h-2 w-full overflow-hidden rounded-full bg-zinc-800",
-        className
-      )}
+      role="progressbar"
+      aria-valuenow={Math.round(percentage)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      className={cn("relative h-1.5 w-full overflow-hidden rounded-full bg-surface2", className)}
       {...props}
     >
       <div
-        className={cn(
-          "h-full rounded-full transition-all duration-500 ease-out",
-          barVariants[variant]
-        )}
+        className={cn("h-full rounded-full transition-all duration-500 ease-out", barVariants[variant])}
         style={{ width: `${percentage}%` }}
       />
     </div>

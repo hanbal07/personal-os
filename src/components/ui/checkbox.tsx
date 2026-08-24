@@ -10,7 +10,7 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
   ({ className, label, checked, onChange, ...props }, ref) => {
     return (
-      <label className="flex items-center space-x-3 cursor-pointer group">
+      <label className="flex cursor-pointer items-center space-x-3 group">
         <div className="relative">
           <input
             type="checkbox"
@@ -22,20 +22,21 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           />
           <div
             className={cn(
-              "h-5 w-5 rounded-md border-2 transition-all duration-200",
+              "h-5 w-5 rounded-md border-2 transition-all duration-150",
               checked
-                ? "border-white bg-white"
-                : "border-zinc-600 group-hover:border-zinc-400",
-              "peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-300 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-zinc-950",
+                ? "border-accent bg-accent"
+                : "border-line bg-surface group-hover:border-accent/50",
+              "peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-paper",
               className
             )}
           >
             {checked && (
               <svg
-                className="h-full w-full text-zinc-950 p-0.5"
+                className="h-full w-full p-0.5 text-white"
                 viewBox="0 0 14 14"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
               >
                 <path
                   d="M11.6666 3.5L5.24992 9.91667L2.33325 7"
@@ -49,7 +50,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           </div>
         </div>
         {label && (
-          <span className="text-sm text-zinc-300 group-hover:text-white transition-colors">
+          <span className="text-sm text-ink transition-colors group-hover:text-accent">
             {label}
           </span>
         )}

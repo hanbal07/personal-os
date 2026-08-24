@@ -179,7 +179,7 @@ export default function HealthPage() {
 
   const mealField = (mealType: string, label: string, placeholder: string) => (
     <div className="space-y-2">
-      <label htmlFor={`meal-${mealType.toLowerCase()}`} className="text-xs text-zinc-500 uppercase tracking-wider">{label}</label>
+      <label htmlFor={`meal-${mealType.toLowerCase()}`} className="text-xs text-muted uppercase tracking-wider">{label}</label>
       <Input
         id={`meal-${mealType.toLowerCase()}`}
         value={meals[mealType] || ""}
@@ -194,7 +194,7 @@ export default function HealthPage() {
   const weekCell = (ok: boolean, label: string) => (
     <div
       className={`h-8 rounded flex items-center justify-center text-[10px] ${
-        ok ? "bg-emerald-900/40 text-emerald-400" : "bg-zinc-800 text-zinc-600"
+        ok ? "bg-success-tint text-success" : "bg-surface2 text-faint"
       }`}
     >
       {label}
@@ -206,16 +206,16 @@ export default function HealthPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Health & Fitness</h1>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h1 className="text-2xl font-bold text-ink">Health & Fitness</h1>
+            <p className="text-sm text-muted mt-1">
               Sustainable habits for a healthier life
-              {savedFlash ? <span className="ml-2 text-emerald-400">· {savedFlash} ✓</span> : null}
+              {savedFlash ? <span className="ml-2 text-success">· {savedFlash} ✓</span> : null}
             </p>
           </div>
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg border border-error/30 bg-error-tint px-4 py-3 text-sm text-error">
             {error}
           </div>
         )}
@@ -225,9 +225,9 @@ export default function HealthPage() {
             {[1, 2, 3, 4].map((i) => (
               <Card key={i}>
                 <CardContent className="space-y-3 p-5">
-                  <div className="h-10 w-10 animate-pulse rounded-lg bg-zinc-800" />
-                  <div className="h-5 w-24 animate-pulse rounded bg-zinc-800/70" />
-                  <div className="h-2 w-full animate-pulse rounded-full bg-zinc-800/70" />
+                  <div className="h-10 w-10 animate-pulse rounded-lg bg-surface2" />
+                  <div className="h-5 w-24 animate-pulse rounded bg-surface2/70" />
+                  <div className="h-2 w-full animate-pulse rounded-full bg-surface2/70" />
                 </CardContent>
               </Card>
             ))}
@@ -238,12 +238,12 @@ export default function HealthPage() {
               <Card>
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="h-10 w-10 rounded-lg bg-blue-900/50 flex items-center justify-center">
-                      <Footprints className="h-5 w-5 text-blue-400" />
+                    <div className="h-10 w-10 rounded-lg bg-accent-tint flex items-center justify-center">
+                      <Footprints className="h-5 w-5 text-accent" />
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500">Walking</p>
-                      <p className="text-lg font-bold text-white">{walkingMins}/{walkingTarget} min</p>
+                      <p className="text-xs text-muted">Walking</p>
+                      <p className="text-lg font-bold text-ink">{walkingMins}/{walkingTarget} min</p>
                     </div>
                   </div>
                   <Progress value={Math.min(100, Math.round((walkingMins / walkingTarget) * 100))} variant="success" />
@@ -261,8 +261,8 @@ export default function HealthPage() {
                       <Dumbbell className="h-5 w-5 text-orange-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500">Workout</p>
-                      <p className="text-lg font-bold text-white">{workoutMins}/{workoutTarget} min today</p>
+                      <p className="text-xs text-muted">Workout</p>
+                      <p className="text-lg font-bold text-ink">{workoutMins}/{workoutTarget} min today</p>
                     </div>
                   </div>
                   <Progress value={Math.min(100, Math.round((workoutMins / workoutTarget) * 100))} variant={workoutMins > 0 ? "success" : "default"} />
@@ -279,8 +279,8 @@ export default function HealthPage() {
                       <Droplets className="h-5 w-5 text-cyan-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500">Water</p>
-                      <p className="text-lg font-bold text-white">{water}/{waterTarget} glasses</p>
+                      <p className="text-xs text-muted">Water</p>
+                      <p className="text-lg font-bold text-ink">{water}/{waterTarget} glasses</p>
                     </div>
                   </div>
                   <Progress value={Math.min(100, Math.round((water / waterTarget) * 100))} />
@@ -298,7 +298,7 @@ export default function HealthPage() {
                       <BedDouble className="h-5 w-5 text-purple-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500">Last Night&apos;s Sleep</p>
+                      <p className="text-xs text-muted">Last Night&apos;s Sleep</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -336,9 +336,9 @@ export default function HealthPage() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Utensils className="h-4 w-4 text-zinc-500" />
+                    <Utensils className="h-4 w-4 text-muted" />
                     Today&apos;s Meals
-                    <span className="text-xs font-normal text-zinc-600">(auto-saves when you leave a field)</span>
+                    <span className="text-xs font-normal text-faint">(auto-saves when you leave a field)</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -347,7 +347,7 @@ export default function HealthPage() {
                   {mealField("SNACK", "Snack (Optional)", "e.g., Fruit, Nuts")}
                   {mealField("DINNER", "Dinner (~7:00 PM)", "e.g., Roti + Salan")}
                   <div className="space-y-2">
-                    <label className="text-xs text-zinc-500 uppercase tracking-wider">Notes (saved with next meal)</label>
+                    <label className="text-xs text-muted uppercase tracking-wider">Notes (saved with next meal)</label>
                     <Textarea value={mealNotes.DINNER || ""} onChange={(e) => setMealNotes({ ...mealNotes, DINNER: e.target.value })} placeholder="How did you feel? Any changes?" />
                   </div>
                 </CardContent>
@@ -359,14 +359,14 @@ export default function HealthPage() {
                 </CardHeader>
                 <CardContent>
                   {!week ? (
-                    <p className="text-sm text-zinc-500">No history yet.</p>
+                    <p className="text-sm text-muted">No history yet.</p>
                   ) : week.every((d) => !d.walk && !d.work && !d.waterOk) ? (
-                    <p className="text-sm text-zinc-500">Log activity to build your weekly consistency view.</p>
+                    <p className="text-sm text-muted">Log activity to build your weekly consistency view.</p>
                   ) : (
                     <div className="grid grid-cols-7 gap-2">
                       {week.map((d) => (
                         <div key={d.date} className="text-center space-y-2">
-                          <div className="text-xs text-zinc-500">{d.label}</div>
+                          <div className="text-xs text-muted">{d.label}</div>
                           <div className="space-y-1">
                             {weekCell(d.walk, "Walk")}
                             {weekCell(d.work, "Work")}

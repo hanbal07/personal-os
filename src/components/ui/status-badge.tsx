@@ -11,28 +11,28 @@ function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = {
     COMPLETED: {
       label: "Completed",
-      className: "bg-emerald-900/50 text-emerald-400 border-emerald-800/50",
-      dot: "bg-emerald-400",
+      className: "bg-success-tint text-success border-success/25",
+      dot: "bg-success",
     },
     PARTIAL: {
       label: "Partial",
-      className: "bg-yellow-900/50 text-yellow-400 border-yellow-800/50",
-      dot: "bg-yellow-400",
+      className: "bg-warning-tint text-warning border-warning/25",
+      dot: "bg-warning",
     },
     MISSED: {
       label: "Missed",
-      className: "bg-red-900/50 text-red-400 border-red-800/50",
-      dot: "bg-red-400",
+      className: "bg-error-tint text-error border-error/25",
+      dot: "bg-error",
     },
     IN_PROGRESS: {
       label: "In Progress",
-      className: "bg-blue-900/50 text-blue-400 border-blue-800/50",
-      dot: "bg-blue-400",
+      className: "bg-accent-tint text-accent-strong border-accent/25",
+      dot: "bg-accent",
     },
     NOT_STARTED: {
       label: "Not Started",
-      className: "bg-zinc-800/50 text-zinc-400 border-zinc-700/50",
-      dot: "bg-zinc-400",
+      className: "bg-surface2/50 text-muted border-line/50",
+      dot: "bg-line",
     },
   };
 

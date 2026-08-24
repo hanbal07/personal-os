@@ -7,8 +7,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Clock, Sun, Moon, CheckCircle2, RefreshCw, StickyNote, X } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Clock, RefreshCw, StickyNote, X, MoonStar } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface RoutineTask {
   id: string;
@@ -18,26 +19,54 @@ interface RoutineTask {
   notes: string;
 }
 
-const suggestedSchedule = [
-  ["05:00", "Wake Up"],
-  ["05:10", "Fajr Prayer"],
-  ["05:30", "Quran Reading"],
-  ["06:00", "Walking / Home Exercise"],
-  ["07:00", "Breakfast"],
-  ["07:30", "Deep Work Block 1 - Concept Learning"],
-  ["09:15", "Deep Work Block 2 - Coding Practice"],
-  ["12:45", "Lunch"],
-  ["13:30", "Asr Prayer"],
-  ["13:45", "Deep Work Block 3 - Project Development"],
-  ["17:00", "Maghrib Prayer"],
-  ["17:15", "Darood-e-Pak"],
-  ["19:45", "Dinner"],
-  ["20:00", "Isha Prayer"],
-  ["20:15", "Daily Review + Reflection"],
-  ["21:00", "Sleep"],
-] as const;
+interface TimelineEntry {
+  minutes: number;
+  label: string;
+  sub?: string;
+  kind: "anchor" | "prayer" | "work" | "care" | "rest" | "faith";
+}
 
-export default function RoutinePage() {
+const suggestedSchedule: Array<[string, string]> = [
+  ["05:00", "Wake Up"],
+  ["05:35", "Quran Reading"],
+  ["06:15", "Walking / Home Workout"],
+  ["07:30", "Breakfast"],
+  ["08:00", "Deep Work 1 — Learning focus"],
+  ["09:10", "Deep Work 2 — Coding practice"],
+  ["11:00", "Deep Work 3 — Project development"],
+  ["12:45", "Lunch"],
+  ["14:30", "Deep Work 4 — Study rotation"],
+  ["16:45", "Light block — Git & reading"],
+  ["19:00", "Bestie Time (~2h)"],
+  ["21:00", "Sleep"],
+];
+
+const PRAYER_ORDER = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
+function hmToMinutes(hm: string): number {
+  const [h, m] = hm.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function formattedToHM(formatted: string): string | null {
+  const m = formatted.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const ap = m[3].toUpperCase();
+  if (ap === "PM" && h !== 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${m[2]}`;
+}
+
+function minutesToLabel(min: number): string {
+  const h24 = Math.floor(min / 60) % 24;
+  const m = min % 60;
+  const ap = h24 >= 12 ? "PM" : "AM";
+  const h = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
+export default function TodayPage() {
   const [tasks, setTasks] = useState<RoutineTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -48,56 +77,107 @@ export default function RoutinePage() {
   const [savedMsg, setSavedMsg] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   const [nowMin, setNowMin] = useState<number | null>(null);
-
-  useEffect(() => {
-    const update = () => {
-      const d = new Date();
-      setNowMin(d.getHours() * 60 + d.getMinutes());
-    };
-    update();
-    const t = setInterval(update, 60000);
-    return () => clearInterval(t);
-  }, []);
-
-  const scheduleMinutes = suggestedSchedule.map(([time]) => {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-  });
-  const activeSlotIndex =
-    nowMin === null
-      ? -1
-      : suggestedSchedule.reduce(
-          (acc, _, i) => (scheduleMinutes[i] <= nowMin ? i : acc),
-          -1
-        );
+  const [timezone, setTimezone] = useState("Asia/Karachi");
+  const [sleepTime, setSleepTime] = useState("21:00");
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/routine");
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setTasks(
-        (data.tasks || []).map((t: RoutineTask) => ({
-          ...t,
-          id: String(t.id),
-        }))
-      );
-      if (data.routine) {
-        setWakeTime(data.routine.wakeTime || "");
-        setNotes(data.routine.notes || "");
-      }
+      setTasks((data.tasks || []).map((t: RoutineTask) => ({ ...t, id: String(t.id) })));
+      if (data.routine?.wakeTime) setWakeTime(data.routine.wakeTime);
     } catch {
-      setError("Failed to load your routine. Please refresh.");
-    } finally {
-      setLoading(false);
+      setError("Couldn't load your routine. Please try again.");
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    Promise.all([
+      fetch("/api/settings").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/routine").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]).then(([settingsData, routineData]) => {
+      if (routineData) {
+        setTasks((routineData.tasks || []).map((t: RoutineTask) => ({ ...t, id: String(t.id) })));
+        if (routineData.routine?.wakeTime) setWakeTime(routineData.routine.wakeTime);
+        if (routineData.routine?.notes) setNotes(routineData.routine.notes);
+      }
+      if (settingsData?.settings) {
+        setTimezone(settingsData.settings.timezone || "Asia/Karachi");
+        setSleepTime(settingsData.settings.sleepTime || "21:00");
+        if (!wakeTime && settingsData.settings.wakeTime) setWakeTime(settingsData.settings.wakeTime);
+      }
+    }).finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Prayer times from the shared calculation service (user settings driven).
+  const [prayerTimes, setPrayerTimes] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/prayers")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.prayers) return;
+        const map: Record<string, string> = {};
+        for (const p of d.prayers) map[p.name] = p.formatted;
+        setPrayerTimes(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Current minute-of-day in the USER'S timezone (not the device's).
+  useEffect(() => {
+    const update = () => {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(new Date());
+      setNowMin(hmToMinutes(parts));
+    };
+    update();
+    const t = setInterval(update, 30000);
+    return () => clearInterval(t);
+  }, [timezone]);
+
+  const timeline: TimelineEntry[] = useMemo(() => {
+    const entries: TimelineEntry[] = [];
+    const push = (hm: string, label: string, sub?: string, kind: TimelineEntry["kind"] = "anchor") =>
+      entries.push({ minutes: hmToMinutes(hm), label, sub, kind });
+
+    const wake = wakeTime || "05:00";
+    push(wake, "Wake Up", undefined, "anchor");
+
+    for (const name of PRAYER_ORDER) {
+      const hm = prayerTimes[name] ? formattedToHM(prayerTimes[name]) : null;
+      if (hm) push(hm, name, "Prayer", "prayer");
+    }
+
+    const fajrHm = prayerTimes.Fajr ? formattedToHM(prayerTimes.Fajr) : null;
+    if (fajrHm) push(addMinutes(fajrHm, 25), "Quran Reading", "30 min", "faith");
+
+    const maghribHm = prayerTimes.Maghrib ? formattedToHM(prayerTimes.Maghrib) : null;
+    if (maghribHm) push(addMinutes(maghribHm, 20), "Darood-e-Pak", "after Maghrib", "faith");
+
+    for (const [hm, label] of suggestedSchedule) {
+      if (label === "Wake Up") continue;
+      const kind = label.startsWith("Deep Work") ? "work" : label.includes("Sleep") ? "rest" : label.includes("Bestie") ? "rest" : "care";
+      push(hm, label.replace(" — ", " · "), undefined, kind as TimelineEntry["kind"]);
+    }
+
+    if (sleepTime) push(sleepTime, "Sleep", undefined, "rest");
+    const reviewAt = addMinutes(sleepTime || "21:00", -15);
+    push(reviewAt, "Daily Review", "2–3 minutes", "anchor");
+
+    entries.sort((a, b) => a.minutes - b.minutes);
+    // de-dup same-minute entries keeping order stable
+    return entries.filter((e, i) => i === 0 || e.minutes !== entries[i - 1].minutes || e.label !== entries[i - 1].label);
+  }, [wakeTime, sleepTime, prayerTimes]);
+
+  const activeIndex =
+    nowMin === null ? -1 : timeline.reduce((acc, e, i) => (e.minutes <= nowMin ? i : acc), -1);
 
   const postUpdate = async (
     updates: Array<{ id: string; completed: boolean; notes?: string }>,
@@ -106,10 +186,7 @@ export default function RoutinePage() {
     const res = await fetch("/api/routine", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tasks: updates,
-        ...(alsoRoutine ? { wakeTime, notes } : {}),
-      }),
+      body: JSON.stringify({ tasks: updates, ...(alsoRoutine ? { wakeTime, notes } : {}) }),
     });
     if (!res.ok) throw new Error();
   };
@@ -118,25 +195,29 @@ export default function RoutinePage() {
     const task = tasks.find((t) => t.id === id);
     if (!task || savingId) return;
     const nextCompleted = !task.completed;
-
     setSavingId(id);
     setError(null);
     const prev = tasks;
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, completed: nextCompleted } : t)));
-
     try {
       await postUpdate([{ id, completed: nextCompleted }]);
     } catch {
       setTasks(prev);
-      setError("Could not save. Try again.");
+      setError("Couldn't save that. Try again.");
     } finally {
       setSavingId(null);
     }
   };
 
-  const updateNotesLocal = (id: string, value: string) => {
+  const updateNotesLocal = (id: string, value: string) =>
     setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, notes: value } : t)));
-  };
+
+  const closeNote = (id: string) =>
+    setExpandedNotes((s) => {
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
 
   const commitNote = async (id: string) => {
     const task = tasks.find((t) => t.id === id);
@@ -144,7 +225,7 @@ export default function RoutinePage() {
     try {
       await postUpdate([{ id, completed: task.completed, notes: task.notes }]);
     } catch {
-      setError("Could not save note. Try again.");
+      setError("Couldn't save the note. Try again.");
     }
   };
 
@@ -158,7 +239,7 @@ export default function RoutinePage() {
       await postUpdate(tasks.map((t) => ({ id: t.id, completed: false })));
     } catch {
       setTasks(prev);
-      setError("Could not reset day. Try again.");
+      setError("Couldn't reset the day. Try again.");
     } finally {
       setResetting(false);
     }
@@ -175,7 +256,7 @@ export default function RoutinePage() {
       setSavedMsg(true);
       setTimeout(() => setSavedMsg(false), 2000);
     } catch {
-      setError("Could not save. Try again.");
+      setError("Couldn't save. Try again.");
     }
   };
 
@@ -183,41 +264,45 @@ export default function RoutinePage() {
   const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
   const categories = Array.from(new Set(tasks.map((t) => t.category)));
-  const sectionIcons = [Sun, Clock, Moon, CheckCircle2, RefreshCw];
+  const sectionIcons = [Clock, MoonStar, StickyNote, RefreshCw];
 
   const renderSection = (title: string, icon: React.ReactNode, items: RoutineTask[]) => (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
             {icon}
             {title}
           </CardTitle>
-          <Badge variant="secondary">
+          <Badge variant={items.length > 0 && items.every((t) => t.completed) ? "success" : "secondary"}>
             {items.filter((t) => t.completed).length}/{items.length}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
         {items.length === 0 ? (
-          <p className="text-sm text-zinc-600 py-2">No tasks in this group.</p>
+          <p className="py-2 text-sm text-faint">No habits in this group.</p>
         ) : (
           items.map((task) => {
             const noteOpen = expandedNotes.has(task.id);
             return (
               <div
                 key={task.id}
-                className="flex items-start gap-3 py-2.5 group rounded-lg hover:bg-zinc-800/30 px-2 -mx-2 transition-colors"
+                className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface2"
               >
                 <div className="pt-0.5">
-                  <Checkbox checked={task.completed} onChange={() => toggleTask(task.id)} disabled={savingId === task.id} />
+                  <Checkbox
+                    checked={task.completed}
+                    onChange={() => toggleTask(task.id)}
+                    disabled={savingId === task.id}
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-sm ${task.completed ? "text-zinc-500 line-through" : "text-zinc-300"}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-sm ${task.completed ? "text-faint line-through" : "text-ink"}`}>
                       {task.label}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{task.category}</span>
+                    <Badge variant="secondary">{task.category}</Badge>
                   </div>
                   {noteOpen ? (
                     <div className="mt-1 flex items-center gap-1">
@@ -227,22 +312,11 @@ export default function RoutinePage() {
                         onChange={(e) => updateNotesLocal(task.id, e.target.value)}
                         onBlur={() => {
                           commitNote(task.id);
-                          setExpandedNotes((s) => {
-                            const next = new Set(s);
-                            next.delete(task.id);
-                            return next;
-                          });
+                          closeNote(task.id);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") e.currentTarget.blur();
-                          if (e.key === "Escape") {
-                            updateNotesLocal(task.id, task.notes);
-                            setExpandedNotes((s) => {
-                              const next = new Set(s);
-                              next.delete(task.id);
-                              return next;
-                            });
-                          }
+                          if (e.key === "Escape") closeNote(task.id);
                         }}
                         placeholder="Add a note…"
                         className="h-7 text-xs"
@@ -251,14 +325,8 @@ export default function RoutinePage() {
                       <button
                         type="button"
                         aria-label={`Close note editor for ${task.label}`}
-                        onClick={() =>
-                          setExpandedNotes((s) => {
-                            const next = new Set(s);
-                            next.delete(task.id);
-                            return next;
-                          })
-                        }
-                        className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                        onClick={() => closeNote(task.id)}
+                        className="rounded p-1 text-muted hover:bg-surface2 hover:text-ink"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -267,7 +335,7 @@ export default function RoutinePage() {
                     <button
                       type="button"
                       onClick={() => setExpandedNotes((s) => new Set(s).add(task.id))}
-                      className="mt-0.5 flex max-w-full items-center gap-1 truncate text-left text-xs text-zinc-500 hover:text-zinc-300"
+                      className="mt-0.5 flex max-w-full items-center gap-1 truncate text-left text-xs text-muted hover:text-accent"
                     >
                       <StickyNote className="h-3 w-3 shrink-0" />
                       <span className="truncate">{task.notes}</span>
@@ -276,15 +344,12 @@ export default function RoutinePage() {
                     <button
                       type="button"
                       onClick={() => setExpandedNotes((s) => new Set(s).add(task.id))}
-                      className="mt-0.5 text-xs text-zinc-600 hover:text-zinc-400"
+                      className="mt-0.5 text-xs text-faint hover:text-accent"
                     >
                       + note
                     </button>
                   )}
                 </div>
-                {task.completed ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                ) : null}
               </div>
             );
           })
@@ -296,108 +361,115 @@ export default function RoutinePage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Daily Routine</h1>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h1 className="text-2xl font-bold tracking-tight text-ink">Today</h1>
+            <p className="mt-1 text-sm text-muted">
               {loading
-                ? "Loading…"
-                : `${completedCount} of ${tasks.length} tasks completed (${progress}%)`}
+                ? "Loading your day…"
+                : tasks.length > 0
+                ? `${completedCount} of ${tasks.length} habits complete (${progress}%)`
+                : "Your daily plan and habits"}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={resetDay} disabled={resetting || tasks.length === 0}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${resetting ? "animate-spin" : ""}`} />
-            Reset Day
-          </Button>
+          {!loading && tasks.length > 0 && (
+            <Button variant="outline" size="sm" onClick={resetDay} disabled={resetting}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${resetting ? "animate-spin" : ""}`} />
+              Reset Day
+            </Button>
+          )}
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <div role="alert" className="rounded-lg border border-error/30 bg-error-tint px-4 py-3 text-sm text-error">
             {error}
           </div>
         )}
 
+        {/* ── Full-day timeline ── */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="h-4 w-4 text-accent" />
+                Timeline
+              </CardTitle>
+              <span className="text-xs text-faint">Prayer times are calculated for your location</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ol className="relative space-y-0.5 border-l border-line pl-0">
+              {timeline.map((entry, i) => {
+                const isPast = nowMin !== null && entry.minutes < nowMin && i !== activeIndex;
+                const isActive = i === activeIndex;
+                const kindCls =
+                  entry.kind === "prayer"
+                    ? "text-faith font-medium"
+                    : entry.kind === "work"
+                    ? "text-accent"
+                    : entry.kind === "rest"
+                    ? "text-muted"
+                    : "text-ink";
+                return (
+                  <li
+                    key={`${entry.minutes}-${entry.label}`}
+                    aria-current={isActive ? "step" : undefined}
+                    className={`-ml-px flex min-h-[34px] items-center gap-3 border-l-2 py-1 pl-4 ${
+                      isActive ? "border-accent bg-accent-tint/60" : "border-transparent"
+                    } ${isPast ? "opacity-45" : ""}`}
+                  >
+                    <span className="w-[70px] shrink-0 font-mono text-xs tabular-nums text-faint">
+                      {minutesToLabel(entry.minutes)}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        entry.kind === "prayer" ? "bg-faith" : isActive ? "bg-accent" : "bg-line"
+                      }`}
+                    />
+                    <span className={`text-sm ${kindCls}`}>{entry.label}</span>
+                    {entry.sub && <span className="hidden text-xs text-faint sm:inline">· {entry.sub}</span>}
+                    {isActive && (
+                      <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tracking-wide text-white">
+                        NOW
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </CardContent>
+        </Card>
+
+        {/* ── Habit checklist ── */}
         {!loading && tasks.length === 0 && !error && (
           <Card>
-            <CardContent className="py-8 text-center text-sm text-zinc-500">
+            <CardContent className="py-8 text-center text-sm text-muted">
               No active disciplines configured yet. Add habits in Settings to build your daily routine.
             </CardContent>
           </Card>
         )}
 
-        {tasks.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-zinc-500" />
-                  Today&apos;s Timeline
-                </CardTitle>
-                <span className="text-xs text-zinc-600">Suggested plan</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-                {[
-                  suggestedSchedule.slice(0, Math.ceil(suggestedSchedule.length / 2)),
-                  suggestedSchedule.slice(Math.ceil(suggestedSchedule.length / 2)),
-                ].map((half, halfIdx) => (
-                  <ol key={halfIdx}>
-                    {half.map(([time, label]) => {
-                      const i = suggestedSchedule.findIndex((s) => s[0] === time);
-                      const isPast = nowMin !== null && scheduleMinutes[i] < nowMin && i !== activeSlotIndex;
-                      const isActive = i === activeSlotIndex;
-                      return (
-                        <li
-                          key={`${time}-${label}`}
-                          className={`flex min-h-[30px] items-center gap-3 rounded-md px-2 -mx-2 ${
-                            isActive ? "bg-white/5" : ""
-                          } ${isPast ? "opacity-45" : ""}`}
-                        >
-                          <span className="w-11 shrink-0 font-mono text-xs text-zinc-500">{time}</span>
-                          <span
-                            className={`h-2 w-2 shrink-0 rounded-full ${
-                              isActive ? "bg-white ring-4 ring-white/15" : "bg-zinc-700"
-                            }`}
-                            aria-hidden="true"
-                          />
-                          <span className={`text-sm ${isActive ? "font-medium text-white" : "text-zinc-400"}`}>
-                            {label}
-                          </span>
-                          {isActive && (
-                            <span className="ml-auto rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-zinc-950">
-                              NOW
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {tasks.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {!loading && tasks.length > 0 && (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {categories.map((cat, i) => {
               const Icon = sectionIcons[i % sectionIcons.length];
               const items = tasks.filter((t) => t.category === cat);
               return renderSection(
                 cat.charAt(0).toUpperCase() + cat.slice(1),
-                <Icon className="h-4 w-4 text-zinc-400" />,
+                <Icon className="h-4 w-4 text-faint" />,
                 items
               );
             })}
           </div>
         )}
 
-        {tasks.length > 0 && (
+        {/* ── Wake & reflection ── */}
+        {!loading && tasks.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Wake Time & Reflection</CardTitle>
+                <CardTitle className="text-base">Wake Time &amp; Reflection</CardTitle>
                 <Button variant="outline" size="sm" onClick={saveMeta}>
                   {savedMsg ? "Saved ✓" : "Save"}
                 </Button>
@@ -405,10 +477,11 @@ export default function RoutinePage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3">
-                <label className="text-xs text-zinc-500 uppercase tracking-wider whitespace-nowrap">
-                  Actual Wake Time
+                <label htmlFor="wake-input" className="whitespace-nowrap text-xs uppercase tracking-wider text-muted">
+                  Actual wake time
                 </label>
                 <Input
+                  id="wake-input"
                   type="time"
                   value={wakeTime}
                   onChange={(e) => setWakeTime(e.target.value)}
@@ -420,6 +493,7 @@ export default function RoutinePage() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="How did today go? Any obstacles?"
                 rows={3}
+                aria-label="Reflection notes"
               />
             </CardContent>
           </Card>
@@ -427,4 +501,11 @@ export default function RoutinePage() {
       </div>
     </AppShell>
   );
+}
+
+function addMinutes(hm: string, delta: number): string {
+  const total = ((hmToMinutes(hm) + delta) % 1440 + 1440) % 1440;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }

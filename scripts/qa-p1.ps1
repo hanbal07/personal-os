@@ -3,7 +3,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 $ErrorActionPreference = "Continue"
 $base  = "https://app-production-4569.up.railway.app"
 $email = "user@personalos.dev"
-$pass  = "password"
+$pass  = $env:QA_PASSWORD; if (-not $pass) { throw "Set QA_PASSWORD env var before running this suite." }
 $jar   = Join-Path $env:TEMP "qa-p1.txt"
 $curl  = "C:\Windows\System32\curl.exe"
 if (Test-Path $jar) { Remove-Item $jar -Force }

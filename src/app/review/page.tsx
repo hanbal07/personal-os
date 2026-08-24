@@ -93,8 +93,8 @@ export default function DailyReviewPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">Daily Review</h1>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h1 className="text-2xl font-bold text-ink">Daily Review</h1>
+            <p className="text-sm text-muted mt-1">
               Reflect on today. Plan for tomorrow.
             </p>
           </div>
@@ -106,13 +106,13 @@ export default function DailyReviewPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg border border-error/30 bg-error-tint px-4 py-3 text-sm text-error">
             {error}
           </div>
         )}
 
         {loading && (
-          <p className="text-sm text-zinc-600">Loading today&apos;s review…</p>
+          <p className="text-sm text-faint">Loading today&apos;s review…</p>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -120,7 +120,7 @@ export default function DailyReviewPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                   What did I accomplish today?
                 </CardTitle>
               </CardHeader>
@@ -137,7 +137,7 @@ export default function DailyReviewPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-400" />
+                  <AlertCircle className="h-4 w-4 text-error" />
                   What did I fail to complete? Why?
                 </CardTitle>
               </CardHeader>
@@ -160,7 +160,7 @@ export default function DailyReviewPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-yellow-400" />
+                  <Lightbulb className="h-4 w-4 text-warning" />
                   What did I learn?
                 </CardTitle>
               </CardHeader>
@@ -191,7 +191,7 @@ export default function DailyReviewPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Target className="h-4 w-4 text-blue-400" />
+                  <Target className="h-4 w-4 text-accent" />
                   What will I improve tomorrow?
                 </CardTitle>
               </CardHeader>
@@ -220,8 +220,8 @@ export default function DailyReviewPage() {
                       onClick={() => setReview((r) => ({ ...r, dayScore: s }))}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                         review.dayScore === s
-                          ? "bg-white/10 text-white"
-                          : "text-zinc-500 hover:bg-zinc-800/50"
+                          ? "bg-accent-tint font-semibold text-accent-strong ring-1 ring-accent/25"
+                          : "text-muted hover:bg-surface2/50"
                       }`}
                     >
                       {s}/10 - {s >= 9 ? "Excellent" : s >= 7 ? "Good" : s >= 5 ? "Moderate" : s >= 3 ? "Needs Work" : "Critical"}

@@ -2,21 +2,48 @@
 
 @theme {
   --font-sans: var(--font-inter);
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
+
+  /* ── PersonalOS light design system ────────────────────────────
+     paper   page background (warm off-white)
+     surface cards (white) / surface2 secondary surface
+     ink     primary text / muted secondary / faint metadata
+     line    hairline borders
+     accent  muted slate blue — actions, active nav, progress
+     semantic colors are for dots, badges, icons, small areas only */
+  --color-paper: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-surface2: #f1f1ed;
+  --color-ink: #1c1c1c;
+  --color-muted: #6b6b6b;
+  --color-faint: #9a9a94;
+  --color-line: #e7e7e3;
+  --color-accent: #5b6c8f;
+  --color-accent-strong: #4a5a7a;
+  --color-accent-tint: #eef1f6;
+  --color-success: #3f7d5a;
+  --color-success-tint: #eaf3ee;
+  --color-warning: #a87832;
+  --color-warning-tint: #f8f2e6;
+  --color-error: #a65353;
+  --color-error-tint: #f8edec;
+  --color-faith: #7a8064;
+  --color-faith-tint: #eff1ea;
+  --color-hero: #232833;
 }
 
 * {
-  border-color: theme(colors.zinc.800);
+  border-color: theme(colors.line);
 }
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -24,10 +51,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
+  background: #d4d4cf;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #bdbdb7;
 }

@@ -75,8 +75,8 @@ export default function CalendarPage() {
     <AppShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Calendar</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-2xl font-bold text-ink">Calendar</h1>
+          <p className="text-sm text-muted mt-1">
             Click any date to view the full daily record
           </p>
         </div>
@@ -84,8 +84,8 @@ export default function CalendarPage() {
         {loading && (
           <Card>
             <CardContent className="py-16 text-center">
-              <div className="animate-spin h-8 w-8 border-2 border-zinc-700 border-t-white rounded-full mx-auto mb-4" />
-              <p className="text-sm text-zinc-400">Loading calendar...</p>
+              <div className="animate-spin h-8 w-8 border-2 border-line border-t-accent rounded-full mx-auto mb-4" />
+              <p className="text-sm text-muted">Loading calendar...</p>
             </CardContent>
           </Card>
         )}
@@ -93,8 +93,8 @@ export default function CalendarPage() {
         {!loading && error && (
           <Card>
             <CardContent className="py-12 text-center">
-              <AlertCircle className="h-10 w-10 text-red-400/60 mx-auto mb-3" />
-              <p className="text-sm text-red-400">{error}</p>
+              <AlertCircle className="h-10 w-10 text-error/60 mx-auto mb-3" />
+              <p className="text-sm text-error">{error}</p>
             </CardContent>
           </Card>
         )}
@@ -138,7 +138,7 @@ export default function CalendarPage() {
                     (day) => (
                       <div
                         key={day}
-                        className="text-center text-xs text-zinc-500 py-2"
+                        className="text-center text-xs text-muted py-2"
                       >
                         {day}
                       </div>
@@ -161,12 +161,12 @@ export default function CalendarPage() {
 
                     const scoreColor =
                       record && record.disciplineScore >= 80
-                        ? "text-emerald-400"
+                        ? "text-success"
                         : record && record.disciplineScore >= 60
-                        ? "text-yellow-400"
+                        ? "text-warning"
                         : record
-                        ? "text-red-400"
-                        : "text-zinc-700";
+                        ? "text-error"
+                        : "text-faint";
 
                     return (
                       <button
@@ -174,15 +174,15 @@ export default function CalendarPage() {
                         onClick={() => setSelectedDate(day)}
                         className={`relative p-2 rounded-lg text-center transition-all ${
                           isSelected
-                            ? "bg-white/10 ring-1 ring-white/20"
-                            : "hover:bg-zinc-800/50"
+                            ? "bg-accent-tint ring-1 ring-accent/30"
+                            : "hover:bg-surface2/50"
                         }`}
                       >
                         <span
                           className={`text-sm ${
                             isToday
-                              ? "font-bold text-white"
-                              : "text-zinc-400"
+                              ? "font-bold text-ink"
+                              : "text-muted"
                           }`}
                         >
                           {day}
@@ -209,46 +209,46 @@ export default function CalendarPage() {
                 <>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">Discipline Score</span>
+                      <span className="text-sm text-muted">Discipline Score</span>
                       <Badge variant="secondary">{selectedRecord.disciplineScore ?? 0}%</Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">Prayers</span>
-                      <span className="text-sm text-white">
+                      <span className="text-sm text-muted">Prayers</span>
+                      <span className="text-sm text-ink">
                         {selectedRecord.prayers}/5
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">Quran</span>
+                      <span className="text-sm text-muted">Quran</span>
                       {selectedRecord.quran ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-400" />
+                        <AlertCircle className="h-4 w-4 text-error" />
                       )}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">Darood</span>
-                      <span className="text-sm text-white">
+                      <span className="text-sm text-muted">Darood</span>
+                      <span className="text-sm text-ink">
                         {selectedRecord.darood}/33
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">Walking</span>
+                      <span className="text-sm text-muted">Walking</span>
                       {selectedRecord.walking ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 text-success" />
                       ) : (
-                        <AlertCircle className="h-4 w-4 text-red-400" />
+                        <AlertCircle className="h-4 w-4 text-error" />
                       )}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">Learning</span>
-                      <span className="text-sm text-white">
+                      <span className="text-sm text-muted">Learning</span>
+                      <span className="text-sm text-ink">
                         {selectedRecord.deepWorkHours}h
                       </span>
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-zinc-800">
+                  <div className="pt-3 border-t border-line">
                     <Button variant="outline" size="sm" className="w-full">
                       View Full Day
                     </Button>
@@ -256,8 +256,8 @@ export default function CalendarPage() {
                 </>
               ) : (
                 <div className="py-10 text-center">
-                  <CalendarIcon className="h-10 w-10 text-zinc-700 mx-auto mb-3" />
-                  <p className="text-sm text-zinc-500">No data recorded for this date.</p>
+                  <CalendarIcon className="h-10 w-10 text-faint mx-auto mb-3" />
+                  <p className="text-sm text-muted">No data recorded for this date.</p>
                 </div>
               )}
             </CardContent>

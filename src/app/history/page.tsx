@@ -84,8 +84,8 @@ export default function HistoryPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">History</h1>
-            <p className="text-sm text-zinc-500 mt-1">
+            <h1 className="text-2xl font-bold text-ink">History</h1>
+            <p className="text-sm text-muted mt-1">
               Your complete daily records - nothing disappears
             </p>
           </div>
@@ -106,8 +106,8 @@ export default function HistoryPage() {
         {loading && (
           <Card>
             <CardContent className="py-16 text-center">
-              <div className="animate-spin h-8 w-8 border-2 border-zinc-700 border-t-white rounded-full mx-auto mb-4" />
-              <p className="text-sm text-zinc-400">Loading your history...</p>
+              <div className="animate-spin h-8 w-8 border-2 border-line border-t-accent rounded-full mx-auto mb-4" />
+              <p className="text-sm text-muted">Loading your history...</p>
             </CardContent>
           </Card>
         )}
@@ -115,8 +115,8 @@ export default function HistoryPage() {
         {!loading && error && (
           <Card>
             <CardContent className="py-12 text-center">
-              <AlertCircle className="h-10 w-10 text-red-400/60 mx-auto mb-3" />
-              <p className="text-sm text-red-400">{error}</p>
+              <AlertCircle className="h-10 w-10 text-error/60 mx-auto mb-3" />
+              <p className="text-sm text-error">{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={loadHistory}>
                 Retry
               </Button>
@@ -127,11 +127,11 @@ export default function HistoryPage() {
         {!loading && !error && visibleDays.length === 0 && (
           <Card>
             <CardContent className="py-16 text-center">
-              <History className="h-12 w-12 text-zinc-700 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-zinc-400">
+              <History className="h-12 w-12 text-faint mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-muted">
                 {searchDate ? "No records found for this date" : "No history yet"}
               </h3>
-              <p className="text-sm text-zinc-600 mt-2 max-w-md mx-auto">
+              <p className="text-sm text-faint mt-2 max-w-md mx-auto">
                 Start your first day to build your progress history.
               </p>
             </CardContent>
@@ -143,7 +143,7 @@ export default function HistoryPage() {
             <Card
               key={day.date}
               className={`cursor-pointer transition-all ${
-                expandedDay === day.date ? "border-zinc-700" : "hover:border-zinc-800"
+                expandedDay === day.date ? "border-line" : "hover:border-line"
               }`}
               onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
             >
@@ -151,8 +151,8 @@ export default function HistoryPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div>
-                      <p className="text-sm font-medium text-white">{day.day}</p>
-                      <p className="text-xs text-zinc-500">{day.date}</p>
+                      <p className="text-sm font-medium text-ink">{day.day}</p>
+                      <p className="text-xs text-muted">{day.date}</p>
                     </div>
                     <Badge
                       variant={
@@ -166,7 +166,7 @@ export default function HistoryPage() {
                       {day.disciplineScore}%
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-zinc-500">
+                  <div className="flex items-center gap-4 text-xs text-muted">
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       {day.tasksCompleted}/{day.tasksTotal}
@@ -177,35 +177,35 @@ export default function HistoryPage() {
                 </div>
 
                 {expandedDay === day.date && (
-                  <div className="mt-4 pt-4 border-t border-zinc-800 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="mt-4 pt-4 border-t border-line grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-xs text-zinc-500 mb-1">Quran</p>
+                      <p className="text-xs text-muted mb-1">Quran</p>
                       <Badge variant={day.quran ? "success" : "destructive"}>
                         {day.quran ? "Completed" : "Missed"}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500 mb-1">Darood</p>
+                      <p className="text-xs text-muted mb-1">Darood</p>
                       <Badge variant={day.darood >= 33 ? "success" : "warning"}>
                         {day.darood}/33
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500 mb-1">Walking</p>
+                      <p className="text-xs text-muted mb-1">Walking</p>
                       <Badge variant={day.walking ? "success" : "destructive"}>
                         {day.walking ? "Done" : "Skipped"}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-xs text-zinc-500 mb-1">Workout</p>
+                      <p className="text-xs text-muted mb-1">Workout</p>
                       <Badge variant={day.workout ? "success" : "destructive"}>
                         {day.workout ? "Done" : "Skipped"}
                       </Badge>
                     </div>
                     {day.notes && (
                       <div className="col-span-full">
-                        <p className="text-xs text-zinc-500 mb-1">Notes</p>
-                        <p className="text-sm text-zinc-400">{day.notes}</p>
+                        <p className="text-xs text-muted mb-1">Notes</p>
+                        <p className="text-sm text-muted">{day.notes}</p>
                       </div>
                     )}
                   </div>

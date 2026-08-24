@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+    <div className="min-h-screen bg-paper flex items-center justify-center">
       <div className="text-center space-y-4">
-        <h1 className="text-6xl font-bold text-white">404</h1>
-        <p className="text-zinc-500">Page not found</p>
+        <h1 className="text-6xl font-bold text-ink">404</h1>
+        <p className="text-muted">Page not found</p>
         <Link href="/dashboard">
           <Button>Go to Dashboard</Button>
         </Link>
