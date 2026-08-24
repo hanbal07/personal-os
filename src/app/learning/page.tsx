@@ -404,7 +404,8 @@ export default function LearningPage() {
                         key={s.id}
                         onClick={() => selectSkill(s.id)}
                         aria-current={selected.id === s.id}
-                        className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        className={`shrink-0 rounded-full border px-3.5 py-2 text-xs
+font-medium transition-colors ${
                           selected.id === s.id
                             ? "border-accent bg-accent-tint text-accent-strong"
                             : "border-line bg-surface text-muted hover:border-faint hover:text-ink"

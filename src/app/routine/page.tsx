@@ -339,7 +339,7 @@ export default function TodayPage() {
                     <button
                       type="button"
                       onClick={() => setExpandedNotes((s) => new Set(s).add(task.id))}
-                      className="mt-0.5 text-xs text-faint hover:text-accent"
+                      className="-my-2 -ml-1 mt-0.5 rounded px-2 py-2 text-xs text-faint hover:text-accent"
                     >
                       + note
                     </button>
